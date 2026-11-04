@@ -1,0 +1,115 @@
+/* Shakir Group — top strip, header and navigation */
+
+/* ---------- Top strip ---------- */
+
+.utility { position: relative; z-index: 60; background: var(--ink-night); color: var(--on-night-muted); font-size: 13px; }
+.utility .wrap { display: flex; justify-content: space-between; align-items: center; gap: 16px; min-height: 40px; }
+.utility ul { display: flex; align-items: center; gap: 22px; }
+.utility li, .utility a { display: inline-flex; align-items: center; gap: 7px; }
+.utility svg { width: 14px; height: 14px; flex: none; color: var(--sky-text); }
+.utility a { transition: color 0.2s; }
+.utility a:hover { color: #fff; }
+.utility .utility-hotline {
+  gap: 8px; padding: 4px 4px 4px 12px; border: 1px solid var(--night-line); border-radius: 999px; color: #dfe4ec;
+}
+.utility .utility-hotline b {
+  display: inline-grid; place-items: center; min-width: 38px; height: 22px; padding: 0 8px;
+  border-radius: 999px; background: var(--sky-text); color: var(--ink-night); font-weight: 600; letter-spacing: 0.04em;
+}
+.utility .utility-hotline:hover { border-color: rgba(255, 255, 255, 0.4); }
+@media (max-width: 900px) { .utility .hide-md { display: none; } }
+@media (max-width: 640px) { .utility .hide-sm { display: none; } .utility ul { gap: 14px; } }
+
+/* ---------- Header ---------- */
+
+.header {
+  position: sticky; top: 0; z-index: 50;
+  background: var(--paper);
+  border-bottom: 1px solid transparent;
+  transition: border-color 0.25s var(--ease), background-color 0.25s var(--ease);
+}
+.header.is-scrolled { border-bottom-color: var(--line); }
+.header .wrap {
+  display: flex; align-items: center; justify-content: space-between; gap: 24px;
+  min-height: calc(var(--header-h) - 1px);
+}
+
+.brand { display: inline-flex; align-items: center; gap: 12px; }
+.brand img { width: 38px; height: auto; }
+.brand-name { display: flex; flex-direction: column; line-height: 1; }
+.brand-name b { font-family: var(--serif); font-weight: 500; font-size: 22px; letter-spacing: -0.01em; }
+.brand-name span { font-size: 10.5px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--muted); margin-top: 5px; }
+
+.nav { display: flex; align-items: center; gap: 32px; }
+.nav-links { display: flex; gap: 28px; font-size: 15px; }
+.nav-links a { position: relative; padding: 6px 0; color: var(--ink-2); }
+.nav-links a::after {
+  content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 1px;
+  background: var(--ink); transform: scaleX(0); transform-origin: left;
+  transition: transform 0.3s var(--ease);
+}
+.nav-links a:hover,
+.nav-links a[aria-current="page"] { color: var(--ink); }
+.nav-links a:hover::after,
+.nav-links a[aria-current="page"]::after { transform: scaleX(1); }
+
+.nav-toggle {
+  display: none;
+  width: 44px; height: 44px; margin-right: -10px;
+  background: none; border: 0; cursor: pointer;
+  align-items: center; justify-content: center;
+}
+.nav-toggle span,
+.nav-toggle span::before,
+.nav-toggle span::after {
+  display: block; width: 22px; height: 1.5px; background: var(--ink); position: relative;
+  transition: transform 0.25s var(--ease), background-color 0.2s;
+}
+.nav-toggle span::before,
+.nav-toggle span::after { content: ""; position: absolute; left: 0; }
+.nav-toggle span::before { top: -7px; }
+.nav-toggle span::after { top: 7px; }
+.nav-open .nav-toggle span { background: transparent; }
+.nav-open .nav-toggle span::before { transform: translateY(7px) rotate(45deg); }
+.nav-open .nav-toggle span::after { transform: translateY(-7px) rotate(-45deg); }
+
+@media (max-width: 1100px) {
+  .nav-toggle { display: inline-flex; }
+  .nav {
+    position: fixed; inset: var(--nav-top, var(--chrome-h)) 0 0 0;
+    flex-direction: column; align-items: stretch; gap: 0;
+    background: var(--paper);
+    padding: 8px var(--gutter) 32px;
+    border-top: 1px solid var(--line);
+    transform: translateY(-8px); opacity: 0; visibility: hidden;
+    transition: opacity 0.25s var(--ease), transform 0.25s var(--ease), visibility 0s linear 0.25s;
+    overflow-y: auto;
+  }
+  .nav-open .nav {
+    transform: none; opacity: 1; visibility: visible;
+    transition: opacity 0.25s var(--ease), transform 0.25s var(--ease);
+  }
+  .nav-links { flex-direction: column; gap: 0; font-size: 20px; }
+  .nav-links a { display: block; padding: 16px 0; border-bottom: 1px solid var(--line); font-family: var(--serif); }
+  .nav-links a::after { display: none; }
+  .nav .btn { margin-top: 24px; }
+  .nav-open { overflow: hidden; }
+}
+
+/* WhatsApp stays reachable on phones as a 44px icon target */
+@media (max-width: 640px) {
+  .utility .utility-wa { min-width: 44px; min-height: 40px; justify-content: center; border: 1px solid var(--night-line); border-radius: 999px; padding: 0 12px; }
+  .utility .utility-wa svg { width: 16px; height: 16px; }
+}
+
+/* Call / WhatsApp rows at the bottom of the phone menu */
+.nav-contact { display: none; }
+@media (max-width: 1100px) {
+  .nav-contact { display: grid; gap: 8px; margin-top: 16px; }
+  .nav-contact a {
+    display: flex; align-items: center; gap: 12px; min-height: 52px; padding: 0 16px;
+    border: 1px solid var(--line); background: var(--card); font-size: 15px;
+  }
+  .nav-contact svg { width: 18px; height: 18px; color: var(--blue); flex: none; }
+  .nav-contact b { font-weight: 500; }
+}

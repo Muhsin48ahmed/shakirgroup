@@ -1,0 +1,98 @@
+/* Shakir Group — Products page */
+
+/* ---------- Filter bar ---------- */
+
+.filter-bar {
+  position: sticky; top: var(--header-h); z-index: 40;
+  background: var(--paper); border-bottom: 1px solid var(--line);
+}
+.filter-bar .wrap { display: flex; align-items: center; gap: 24px; min-height: 64px; }
+.filter-bar .eyebrow { flex: none; }
+.filters { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; padding: 10px 0; }
+.filters::-webkit-scrollbar { display: none; }
+.filter {
+  flex: none; display: inline-flex; align-items: center; gap: 8px;
+  min-height: 40px; padding: 0 16px;
+  background: transparent; border: 1px solid var(--line); border-radius: 999px;
+  font-size: 14.5px; cursor: pointer; color: var(--ink-2);
+  transition: background-color 0.2s, color 0.2s, border-color 0.2s;
+}
+.filter span { font-size: var(--fs-xs); color: var(--muted); }
+.filter:hover { border-color: var(--ink); color: var(--ink); }
+.filter[aria-pressed="true"] { background: var(--ink); border-color: var(--ink); color: var(--paper); }
+.filter[aria-pressed="true"] span { color: rgb(255 255 255 / 0.65); }
+@media (max-width: 760px) { .filter-bar .eyebrow { display: none; } }
+
+/* ---------- Groups ---------- */
+
+.cat-group { padding: clamp(56px, 7vw, 96px) 0; border-bottom: 1px solid var(--line); scroll-margin-top: calc(var(--header-h) + 64px); }
+.cat-group[hidden] { display: none; }
+.cat-head {
+  display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: 20px 56px; align-items: end;
+  margin-bottom: 40px;
+}
+.cat-head .h2 { margin-top: 16px; }
+.cat-head p { color: var(--ink-2); max-width: 56ch; }
+.cat-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 24px; margin-top: 20px; }
+.btn--sm { min-height: 40px; padding: 0 16px; font-size: 14px; }
+@media (max-width: 860px) { .cat-head { grid-template-columns: 1fr; } }
+
+/* ---------- Brand tiles (mattress brands) ---------- */
+
+.brand-tiles {
+  display: grid; grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 1px; background: var(--line); border: 1px solid var(--line); margin-bottom: 48px;
+}
+.brand-tiles li { background: var(--card); padding: 20px 18px; }
+.brand-tiles b { display: block; font-family: var(--serif); font-weight: 400; font-size: 1.35rem; line-height: 1.1; }
+.brand-tiles span { display: block; font-size: 12px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--blue); margin-top: 8px; }
+.brand-tiles p { font-size: 14px; color: var(--muted); margin-top: 8px; line-height: 1.45; }
+@media (max-width: 1100px) { .brand-tiles { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (max-width: 560px) { .brand-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+/* ---------- Catalogue grid ---------- */
+
+.catalog { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 40px 20px; }
+.catalog .product-img { aspect-ratio: 1; }
+@media (max-width: 1100px) { .catalog { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (max-width: 760px) { .catalog { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 32px 14px; } .catalog .product h3 { font-size: 1.15rem; } }
+
+.also {
+  display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 9fr); gap: 16px 40px;
+  margin-top: 48px; padding: 24px 0 0; border-top: 1px solid var(--ink);
+}
+.also ul { display: flex; flex-wrap: wrap; gap: 8px; }
+.also li { font-size: var(--fs-sm); padding: 8px 12px; background: var(--card); border: 1px solid var(--line); }
+.also li b { font-weight: 500; }
+@media (max-width: 760px) { .also { grid-template-columns: 1fr; } }
+
+/* ---------- Standards strip ---------- */
+
+.standards { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); border-top: 1px solid var(--night-line); }
+.standards li { padding: 28px 24px 8px 0; }
+.standards li + li { padding-left: 24px; border-left: 1px solid var(--night-line); }
+.standards b { display: block; font-family: var(--serif); font-weight: 400; font-size: 1.9rem; color: #fff; line-height: 1; }
+.standards span { display: block; margin-top: 10px; font-size: 14px; color: var(--on-night-muted); }
+@media (max-width: 760px) {
+  .standards { grid-template-columns: 1fr 1fr; }
+  .standards li:nth-child(3) { padding-left: 0; border-left: 0; }
+}
+
+/* ---------- How to order ---------- */
+
+.steps { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1px; background: var(--line); border: 1px solid var(--line); }
+.steps li { background: var(--paper); padding: clamp(24px, 3vw, 36px); }
+.steps .n { font-family: var(--serif); font-size: 15px; color: var(--blue); }
+.steps h3 { font-family: var(--serif); font-weight: 400; font-size: 1.6rem; margin: 16px 0 10px; }
+.steps p { font-size: 15.5px; color: var(--ink-2); }
+.steps p a { color: var(--blue); border-bottom: 1px solid currentColor; }
+@media (max-width: 960px) { .steps { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 560px) { .steps { grid-template-columns: 1fr; } }
+
+/* Company colour per category (deep tint, readable on paper) */
+.cat-head .eyebrow::before { background: var(--accent-ink); height: 3px; width: 28px; }
+
+/* chip strip hints that it scrolls sideways */
+@media (max-width: 760px) {
+  .filters { -webkit-mask-image: linear-gradient(90deg, #000 85%, transparent); mask-image: linear-gradient(90deg, #000 85%, transparent); padding-right: 32px; }
+}

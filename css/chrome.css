@@ -1,0 +1,59 @@
+/* Shakir Group — site chrome: utility bar, header, navigation, page hero, CTA, footer */
+
+/* ---------- Page hero (inner pages) ---------- */
+
+.page-hero {
+  position: relative;
+  color: #fff;
+  background: var(--night);
+  min-height: clamp(380px, 52vh, 520px);
+  display: flex; align-items: flex-end;
+  overflow: hidden;
+}
+.page-hero > img {
+  position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover;
+}
+.page-hero::after {
+  content: ""; position: absolute; inset: 0;
+  background: linear-gradient(180deg, rgb(var(--scrim) / 0.15) 0%, rgb(var(--scrim) / 0.78) 100%);
+}
+.page-hero .wrap { position: relative; z-index: 1; padding-bottom: clamp(40px, 6vw, 72px); }
+.page-hero .eyebrow { color: rgba(255, 255, 255, 0.8); margin-bottom: 20px; }
+.page-hero .display { max-width: 16ch; }
+.page-hero .credit { position: absolute; right: var(--gutter); bottom: 16px; z-index: 1; font-size: 11px; color: rgba(255, 255, 255, 0.55); }
+
+.page-hero--plain { background: var(--paper); color: var(--ink); min-height: 0; }
+.page-hero--plain::after { display: none; }
+.page-hero--plain .wrap { padding-top: clamp(64px, 9vw, 112px); padding-bottom: clamp(40px, 5vw, 64px); }
+.page-hero--plain .eyebrow { color: var(--muted); }
+.page-hero--plain .display { max-width: 18ch; }
+.page-lede { margin-top: 24px; max-width: 56ch; color: var(--ink-2); }
+
+/* ---------- CTA band ---------- */
+
+.cta {
+  background: var(--blue);
+  color: #fff;
+}
+.cta .wrap {
+  display: grid; grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); gap: 32px 64px; align-items: end;
+  padding-top: clamp(64px, 8vw, 104px); padding-bottom: clamp(64px, 8vw, 104px);
+}
+.cta p { color: rgba(255, 255, 255, 0.82); margin-top: 18px; max-width: 48ch; }
+.cta-actions { display: flex; flex-wrap: wrap; gap: 12px; justify-content: flex-end; }
+@media (max-width: 860px) {
+  .cta .wrap { grid-template-columns: 1fr; }
+  .cta-actions { justify-content: flex-start; }
+}
+
+/* ---------- Image CTA ---------- */
+
+.cta--image { position: relative; background: var(--night); overflow: hidden; }
+.cta--image > img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 50% 42%; }
+.cta--image::after {
+  content: ""; position: absolute; inset: 0;
+  background: linear-gradient(90deg, rgb(var(--scrim) / 0.88) 0%, rgb(var(--scrim) / 0.55) 55%, rgb(var(--scrim) / 0.35) 100%);
+}
+.cta--image .wrap { position: relative; z-index: 1; padding-top: clamp(96px, 13vw, 176px); padding-bottom: clamp(96px, 13vw, 176px); }
+.cta--image .h2 { font-size: clamp(2.3rem, 4.6vw, 4.2rem); max-width: 16ch; }
+.cta--image .eyebrow { color: rgba(255, 255, 255, 0.75); margin-bottom: 24px; }

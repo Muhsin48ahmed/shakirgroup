@@ -1,0 +1,85 @@
+/* Shakir Group — components shared by several pages: intro collage, product card, partner logos, company colours */
+
+/* ---------- Intro collage (home + about) ---------- */
+
+.intro-grid { display: grid; grid-template-columns: minmax(0, 6fr) minmax(0, 6fr); gap: 56px 80px; align-items: center; }
+.intro-text > * + * { margin-top: 28px; }
+.intro-text .eyebrow { margin-bottom: 4px; }
+.statement-xl {
+  font-family: var(--serif); font-weight: 400;
+  font-size: clamp(2.1rem, 4.2vw, 3.7rem); line-height: 1.06; letter-spacing: -0.02em;
+}
+.statement-xl em { color: var(--blue); }
+.intro-text p:not(.statement-xl):not(.eyebrow) { color: var(--ink-2); max-width: 52ch; }
+
+.intro-media { position: relative; padding: 0 0 72px 64px; }
+.intro-media .main { width: 100%; aspect-ratio: 4 / 5; object-fit: cover; }
+.intro-media--wide .main { aspect-ratio: 4 / 3.4; object-position: 50% 30%; }
+.intro-media .inset { position: absolute; left: 0; bottom: 0; width: 44%; border: 8px solid var(--paper); background: var(--paper); }
+.intro-media .inset img { width: 100%; aspect-ratio: 1; object-fit: cover; }
+@media (max-width: 960px) {
+  .intro-grid { grid-template-columns: 1fr; }
+  .intro-media { max-width: 560px; }
+}
+@media (max-width: 520px) { .intro-media { padding: 0 0 56px 32px; } }
+
+/* ---------- Company colours ---------- */
+/* light tints read on dark surfaces; the "-ink" variants are for light surfaces */
+
+[data-company="general"], [data-group="tyres"], [data-group="lubricants"], [data-group="belts"], [data-group="grease"] { --accent: var(--c-general); --accent-ink: var(--c-general-ink); }
+[data-company="foam"], [data-group="mattresses"] { --accent: var(--c-foam); --accent-ink: var(--c-foam-ink); }
+[data-company="furniture"] { --accent: var(--c-furniture); --accent-ink: var(--c-furniture-ink); }
+[data-company="oasis"] { --accent: var(--c-oasis); --accent-ink: var(--c-oasis-ink); }
+
+/* ---------- Product card ---------- */
+
+.product { position: relative; display: flex; flex-direction: column; }
+.product-img { position: relative; aspect-ratio: 4 / 5; overflow: hidden; background: var(--tile); }
+.product-img img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.9s var(--ease); }
+.product:hover .product-img img { transform: scale(1.04); }
+.product-cat {
+  position: absolute; left: 12px; top: 12px;
+  background: var(--paper); color: var(--ink); box-shadow: inset 3px 0 0 var(--accent-ink, transparent);
+  font-size: var(--fs-xs); letter-spacing: 0.1em; text-transform: uppercase; padding: 5px 9px 5px 12px;
+}
+.product h3 { font-family: var(--serif); font-weight: 400; font-size: 1.4rem; margin-top: 16px; line-height: 1.2; }
+.product p { font-size: var(--fs-sm); color: var(--muted); margin-top: 4px; }
+.badges { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.badges li { font-size: var(--fs-xs); padding: 3px 8px; border: 1px solid var(--line); color: var(--ink-2); }
+.ask-price {
+  display: inline-flex; align-items: center; gap: 6px; align-self: flex-start;
+  margin-top: 14px; padding: 6px 0; min-height: 32px;
+  font-size: var(--fs-sm); font-weight: 500; color: var(--blue); border-bottom: 1px solid currentColor;
+}
+.ask-price svg { width: 14px; height: 14px; transition: transform 0.25s var(--ease); }
+.ask-price:hover svg { transform: translateX(3px); }
+
+/* typographic card for lines without real product photography */
+.product--text {
+  min-height: 100%; padding: 20px 20px 22px;
+  background: var(--card); border: 1px solid var(--line); border-top: 3px solid var(--accent-ink, var(--line));
+}
+.product--text .product-cat { position: static; align-self: flex-start; padding: 0; background: none; box-shadow: none; color: var(--muted); }
+.product--text h3 { margin-top: 12px; }
+.product--text .ask-price { margin-top: auto; padding-top: 18px; }
+
+/* ---------- Partner logos ---------- */
+
+.brands-row {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 16px 40px;
+  margin-top: clamp(48px, 6vw, 80px); padding-top: 32px; border-top: 1px solid var(--line);
+}
+.brands-row .eyebrow { margin-right: auto; }
+.brands-row img { height: 32px; width: auto; filter: grayscale(1); opacity: 0.72; mix-blend-mode: multiply; transition: filter 0.3s, opacity 0.3s; }
+.brands-row img:hover { filter: none; opacity: 1; }
+.brands-row img[alt="Aeolus"] { height: 24px; }
+.brands-row img[alt="Incoe"] { height: 26px; }
+.brands-row img[alt="Westlake"] { height: 30px; }
+.brands-row--dark { border-top-color: var(--night-line); }
+.brands-row--dark img { filter: grayscale(1) invert(1); mix-blend-mode: screen; }
+.brands-row--dark img:hover { filter: invert(1); }
+@media (max-width: 640px) {
+  .brands-row { display: grid; grid-template-columns: repeat(3, auto); justify-content: start; gap: 20px 28px; }
+  .brands-row .eyebrow { grid-column: 1 / -1; }
+  .brands-row img { height: 24px; }
+}

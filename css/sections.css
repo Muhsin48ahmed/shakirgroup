@@ -1,0 +1,104 @@
+/* Shakir Group — content sections shared across pages */
+
+/* ---------- Home hero ---------- */
+
+.hero {
+  position: relative;
+  min-height: clamp(600px, calc(100svh - var(--chrome-h)), 860px);
+  display: flex; flex-direction: column; justify-content: flex-end;
+  color: #fff; background: var(--night);
+  overflow: hidden;
+}
+.hero > img {
+  position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 50% 60%;
+  animation: settle 2.4s var(--ease) both;
+}
+@keyframes settle { from { transform: scale(1.07); } to { transform: none; } }
+@media (prefers-reduced-motion: reduce) { .hero > img { animation: none; } }
+.hero::after {
+  content: ""; position: absolute; inset: 0;
+  background:
+    linear-gradient(90deg, rgb(var(--scrim) / 0.72) 0%, rgb(var(--scrim) / 0.25) 60%, rgb(var(--scrim) / 0.1) 100%),
+    linear-gradient(180deg, rgb(var(--scrim) / 0) 40%, rgb(var(--scrim) / 0.7) 100%);
+}
+.hero-body { position: relative; z-index: 1; padding-top: clamp(56px, 9vh, 112px); padding-bottom: clamp(36px, 5vh, 56px); }
+.hero .eyebrow { color: rgba(255, 255, 255, 0.82); margin-bottom: 24px; }
+.hero .display { max-width: 15ch; }
+.hero .lede { color: rgba(255, 255, 255, 0.86); max-width: 50ch; margin-top: 24px; }
+.hero-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 32px; }
+
+.facts { position: relative; z-index: 1; }
+.facts ul { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); border-top: 1px solid rgba(255, 255, 255, 0.22); }
+.facts li { padding: 20px 24px 22px 0; }
+.facts li + li { padding-left: 24px; border-left: 1px solid rgba(255, 255, 255, 0.22); }
+.facts b { display: block; font-family: var(--serif); font-weight: 400; font-size: clamp(1.9rem, 3vw, 2.6rem); line-height: 1; }
+.facts span { display: block; margin-top: 10px; font-size: 14px; color: rgba(255, 255, 255, 0.75); }
+.hero .credit { position: absolute; right: var(--gutter); top: 16px; z-index: 1; font-size: 11px; color: rgba(255, 255, 255, 0.5); }
+
+@media (max-width: 760px) {
+  .facts ul { grid-template-columns: 1fr 1fr; }
+  .facts li:nth-child(3) { padding-left: 0; border-left: 0; }
+  .facts li:nth-child(n + 3) { border-top: 1px solid rgba(255, 255, 255, 0.22); }
+}
+
+/* ---------- Intro / split ---------- */
+
+.split {
+  display: grid; grid-template-columns: minmax(0, 4fr) minmax(0, 8fr); gap: 32px 64px;
+}
+.split-aside .eyebrow { position: sticky; top: calc(var(--header-h) + 32px); }
+@media (max-width: 860px) {
+  .split { grid-template-columns: 1fr; }
+  .split-aside .eyebrow { position: static; }
+}
+
+/* ---------- Presence / map ---------- */
+
+.presence { display: grid; grid-template-columns: minmax(0, 6fr) minmax(0, 6fr); gap: 40px 72px; align-items: start; }
+.map {
+  position: relative; background: var(--card); border: 1px solid var(--line);
+  aspect-ratio: 4 / 5; overflow: hidden;
+}
+.map svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+.map .land { fill: #e6e1d6; stroke: #f8f6f1; stroke-width: 0.8; }
+.map .land--home { fill: #c9d3e6; }
+.map .sea-label { font: italic 13px var(--serif); fill: #9a9a92; letter-spacing: 0.06em; }
+.map .country-label { font: 500 10px var(--sans); fill: #8b8b84; letter-spacing: 0.16em; text-transform: uppercase; }
+.map .route { fill: none; stroke: var(--sky); stroke-width: 1.6; stroke-dasharray: 4 5; }
+.map .city circle { fill: var(--blue); stroke: #fff; stroke-width: 2; }
+.map .city--hq circle { fill: var(--ink); }
+.map .city text { font: 500 12px var(--sans); fill: var(--ink); paint-order: stroke; stroke: var(--card); stroke-width: 4px; stroke-linejoin: round; }
+.map-note { margin-top: 10px; font-size: 12px; color: var(--muted); }
+
+.offices li {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 16px;
+  padding: 20px 0; border-bottom: 1px solid var(--line);
+}
+.offices li:first-child { border-top: 1px solid var(--line); }
+.offices h3 { font-family: var(--serif); font-weight: 400; font-size: 1.45rem; line-height: 1.2; }
+.offices .tag { font-size: 12px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); align-self: center; }
+.offices .tag--hq { color: var(--blue); }
+.offices p { grid-column: 1 / -1; font-size: 15px; color: var(--ink-2); }
+@media (max-width: 860px) {
+  .presence { grid-template-columns: 1fr; }
+  .map { aspect-ratio: 4 / 5; }
+  .map .city text { font-size: 15px; }
+  .map .country-label { font-size: 12px; }
+  .map .sea-label { font-size: 15px; }
+}
+
+/* Flag-blue accent on dark surfaces */
+.section--night .eyebrow::before,
+.showcase .eyebrow::before,
+.cta--image .eyebrow::before,
+.enquiry .eyebrow::before,
+.page-hero .eyebrow::before,
+.hero .eyebrow::before { background: var(--sky); height: 2px; }
+
+/* responsive <picture> heroes: the picture fills the band, its img behaves like the old direct child */
+.hero > picture, .page-hero > picture, .cta--image > picture { position: absolute; inset: 0; }
+.hero > picture img, .page-hero > picture img, .cta--image > picture img { width: 100%; height: 100%; object-fit: cover; }
+.hero > picture img { object-position: 50% 60%; animation: settle 2.4s var(--ease) both; }
+.page-hero--tall > picture img { animation: settle 2.4s var(--ease) both; }
+.cta--image > picture img { object-position: 50% 42%; }
+@media (prefers-reduced-motion: reduce) { .hero > picture img, .page-hero--tall > picture img { animation: none; } }

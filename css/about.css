@@ -1,0 +1,75 @@
+/* Shakir Group — About page */
+
+/* Hero with facts strip */
+.page-hero--tall { min-height: clamp(560px, calc(100svh - var(--chrome-h)), 820px); flex-direction: column; justify-content: flex-end; align-items: stretch; }
+.page-hero--tall > img { animation: settle 2.4s var(--ease) both; }
+.page-hero--tall .wrap.hero-copy { padding-bottom: clamp(36px, 5vh, 56px); }
+.page-hero--tall .display { max-width: 17ch; }
+.page-hero--tall .lede { color: rgba(255, 255, 255, 0.86); max-width: 52ch; margin-top: 24px; }
+.page-hero--tall .facts { padding-bottom: 0; }
+@media (prefers-reduced-motion: reduce) { .page-hero--tall > img { animation: none; } }
+
+/* Story media: landscape variant of the intro collage */
+.intro-media--wide .main { aspect-ratio: 4 / 3.4; object-position: 50% 30%; }
+
+/* Purpose panels */
+.purpose { display: grid; grid-template-columns: 1fr 1fr; }
+.purpose article {
+  position: relative; overflow: hidden; color: #fff;
+  padding: clamp(48px, 7vw, 104px) clamp(24px, 5vw, 72px);
+  min-height: clamp(420px, 52vw, 600px);
+  display: flex; flex-direction: column; justify-content: flex-start; gap: clamp(32px, 5vw, 56px);
+}
+.purpose .mission { background: var(--blue); }
+.purpose .vision { background: var(--night); }
+.purpose article > *:not(img) { position: relative; }
+.purpose .eyebrow { color: rgba(255, 255, 255, 0.78); }
+.purpose .big-word { font-family: var(--serif); font-size: clamp(3rem, 7vw, 6rem); line-height: 0.9; letter-spacing: -0.03em; }
+.purpose p.statement { font-size: clamp(1.3rem, 2.1vw, 1.85rem); max-width: 30ch; margin-top: 24px; }
+@media (max-width: 860px) { .purpose { grid-template-columns: 1fr; } .purpose article { min-height: 0; } }
+
+/* Timeline on night */
+.chronicle { display: grid; grid-template-columns: minmax(0, 4fr) minmax(0, 8fr); gap: 40px 80px; }
+.chronicle-head { position: sticky; top: calc(var(--header-h) + 40px); align-self: start; }
+.chronicle-head .h2 { margin-top: 20px; }
+.chronicle-head p { margin-top: 20px; color: var(--on-night-muted); max-width: 34ch; }
+.chronicle ol { position: relative; border-left: 1px solid var(--night-line); }
+.chronicle li { position: relative; padding: 0 0 48px 40px; }
+.chronicle li:last-child { padding-bottom: 0; }
+.chronicle li::before {
+  content: ""; position: absolute; left: -6px; top: 14px; width: 11px; height: 11px;
+  border-radius: 50%; background: var(--night); border: 2px solid var(--sky);
+}
+.chronicle li:last-child::before { background: var(--sky); }
+.chronicle time { display: block; font-family: var(--serif); font-size: clamp(2.6rem, 5vw, 4.2rem); line-height: 1; color: #fff; letter-spacing: -0.02em; }
+.chronicle h3 { font-size: 17px; font-weight: 500; margin-top: 12px; color: #fff; }
+.chronicle p { margin-top: 6px; color: var(--on-night-muted); max-width: 54ch; }
+@media (max-width: 860px) {
+  .chronicle { grid-template-columns: 1fr; }
+  .chronicle-head { position: static; }
+}
+
+/* Values: a quiet two-column list */
+.values-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 64px; }
+.values-grid > * { padding: 26px 0; border-top: 1px solid var(--line); }
+.values-grid h3 { font-family: var(--serif); font-weight: 400; font-size: 1.55rem; line-height: 1.2; }
+.values-grid p { margin-top: 8px; color: var(--ink-2); max-width: 46ch; }
+@media (max-width: 760px) { .values-grid { grid-template-columns: 1fr; } }
+
+/* People */
+.people { display: grid; gap: 12px; }
+.people img { width: 100%; aspect-ratio: 1; object-fit: cover; }
+.people-note { margin-top: 20px; font-size: 14px; color: var(--muted); }
+
+.page-hero--tall::after {
+  background:
+    linear-gradient(90deg, rgb(var(--scrim) / 0.78) 0%, rgb(var(--scrim) / 0.35) 65%, rgb(var(--scrim) / 0.15) 100%),
+    linear-gradient(180deg, rgb(var(--scrim) / 0) 35%, rgb(var(--scrim) / 0.78) 100%);
+}
+.intro-media--wide .intro-badge { top: auto; bottom: 24px; }
+
+.people { grid-template-columns: repeat(3, minmax(0, 1fr)); max-width: 920px; }
+
+/* phone: give the hero copy room under the header */
+@media (max-width: 760px) { .page-hero--tall .wrap.hero-copy { padding-top: clamp(56px, 14vw, 96px); } }
+.page-hero .credit--top { top: 16px; bottom: auto; }

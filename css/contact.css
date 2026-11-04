@@ -1,0 +1,133 @@
+/* Shakir Group — contact page */
+
+.contact-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 24px; }
+.office-card { background: var(--card); border: 1px solid var(--line); display: flex; flex-direction: column; }
+.office-card img { width: 100%; aspect-ratio: 16 / 9; object-fit: cover; }
+.office-card-body { padding: clamp(24px, 3vw, 36px); display: flex; flex-direction: column; gap: 18px; flex: 1; }
+.office-card .eyebrow { color: var(--blue); }
+.office-card h2 { font-family: var(--serif); font-weight: 400; font-size: 1.8rem; line-height: 1.15; }
+.office-card address { font-style: normal; color: var(--ink-2); }
+.office-card dl { display: grid; grid-template-columns: auto 1fr; gap: 8px 16px; font-size: 15px; margin-top: auto; padding-top: 18px; border-top: 1px solid var(--line); }
+.office-card dt { color: var(--muted); }
+.office-card dd a { border-bottom: 1px solid var(--line); overflow-wrap: anywhere; }
+.office-card dd a:hover { border-color: var(--ink); }
+
+.office-card--hotline { background: var(--night); color: var(--on-night); border-color: var(--night); }
+.office-card--hotline .eyebrow { color: var(--on-night-muted); }
+.office-card--hotline .big { font-family: var(--serif); font-size: clamp(4rem, 8vw, 6rem); line-height: 0.9; color: #fff; }
+.office-card--hotline p { color: var(--on-night-muted); }
+.office-card--hotline dl { border-top-color: var(--night-line); }
+.office-card--hotline dt { color: var(--on-night-muted); }
+.office-card--hotline dd a { border-bottom-color: var(--night-line); }
+
+@media (max-width: 960px) { .contact-grid { grid-template-columns: 1fr 1fr; } .office-card--hotline { grid-column: 1 / -1; } }
+@media (max-width: 640px) { .contact-grid { grid-template-columns: minmax(0, 1fr); } }
+
+.desks { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); border-top: 1px solid var(--line); }
+.desks li { padding: 24px 24px 24px 0; border-bottom: 1px solid var(--line); }
+.desks li + li { padding-left: 24px; border-left: 1px solid var(--line); }
+.desks h3 { font-size: 15px; font-weight: 500; }
+.desks p { font-size: 14px; color: var(--muted); margin: 4px 0 12px; }
+.desks a { font-size: 15px; color: var(--blue); border-bottom: 1px solid currentColor; word-break: break-all; }
+@media (max-width: 860px) {
+  .desks { grid-template-columns: 1fr 1fr; }
+  .desks li:nth-child(3) { padding-left: 0; border-left: 0; }
+}
+@media (max-width: 520px) {
+  .desks { grid-template-columns: 1fr; }
+  .desks li + li { padding-left: 0; border-left: 0; }
+}
+
+/* ---------- Form ---------- */
+
+.form-split { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: 40px 72px; }
+@media (max-width: 860px) { .form-split { grid-template-columns: 1fr; } }
+
+.form { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+.field { display: flex; flex-direction: column; gap: 8px; }
+.field--full { grid-column: 1 / -1; }
+.field label { font-size: 14px; font-weight: 500; }
+.field input,
+.field select,
+.field textarea {
+  width: 100%; min-height: 50px; padding: 12px 14px;
+  background: var(--card); border: 1px solid var(--field-line); border-radius: var(--radius);
+  transition: border-color 0.2s;
+}
+.field textarea { min-height: 160px; resize: vertical; }
+.field input:focus,
+.field select:focus,
+.field textarea:focus { outline: none; border-color: var(--blue); box-shadow: 0 0 0 3px rgba(29, 79, 160, 0.15); }
+.field [aria-invalid="true"] { border-color: #b3261e; }
+.field-error { font-size: 13px; color: #b3261e; min-height: 1em; }
+.form-foot { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 16px; align-items: center; justify-content: space-between; }
+.form-status { font-size: 14px; color: var(--ink-2); }
+@media (max-width: 560px) { .form { grid-template-columns: 1fr; } }
+
+/* ---------- FAQ ---------- */
+
+.faq details { border-bottom: 1px solid var(--line); }
+.faq details:first-child { border-top: 1px solid var(--line); }
+.faq summary {
+  list-style: none; cursor: pointer;
+  display: flex; justify-content: space-between; gap: 24px; align-items: center;
+  padding: 22px 0; font-family: var(--serif); font-size: 1.3rem; line-height: 1.3;
+}
+.faq summary::-webkit-details-marker { display: none; }
+.faq summary::after { content: "+"; font-family: var(--sans); font-size: 24px; font-weight: 300; color: var(--blue); transition: transform 0.25s var(--ease); }
+.faq details[open] summary::after { transform: rotate(45deg); }
+.faq details p { padding: 0 0 24px; color: var(--ink-2); max-width: 64ch; }
+
+/* ---------- Enquiry panel ---------- */
+
+.enquiry { background: var(--night); color: var(--on-night); }
+.enquiry .eyebrow { color: var(--on-night-muted); }
+.enquiry .intro-copy p { color: var(--on-night-muted); }
+.hours { margin-top: 40px; border-top: 1px solid var(--night-line); max-width: 380px; }
+.hours div { display: flex; justify-content: space-between; padding: 14px 0; border-bottom: 1px solid var(--night-line); font-size: 15px; }
+.hours dt { color: var(--on-night-muted); }
+.hours dd { color: #fff; }
+.form-card { background: var(--card); color: var(--ink); padding: clamp(24px, 4vw, 48px); }
+
+.desks-title { margin-bottom: 24px; }
+h2.eyebrow { font-weight: 500; }
+
+/* form: visible field edges (3.8:1), custom select arrow, two send buttons */
+.form { --field-line: #857f73; }
+.field select {
+  appearance: none; -webkit-appearance: none; padding-right: 40px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' fill='none' stroke='%23121722' stroke-width='1.5'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 14px center;
+}
+.form-title { margin-top: 20px; }
+.form-intro { margin-top: 20px; max-width: 40ch; }
+.form-actions { display: flex; flex-wrap: wrap; gap: 10px; }
+.form-status a { color: var(--blue); border-bottom: 1px solid currentColor; }
+.hours a { color: #fff; }
+
+/* ---------- Contact intro: the numbers are the hero ---------- */
+
+.contact-numbers {
+  display: grid; grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin-top: clamp(40px, 6vw, 72px); border-top: 1px solid var(--ink);
+}
+.contact-numbers li + li { border-left: 1px solid var(--line); }
+.contact-numbers a { display: block; padding: 24px 20px 8px; height: 100%; transition: background-color 0.25s var(--ease); }
+.contact-numbers li:first-child a { padding-left: 0; }
+.contact-numbers a:hover { background: var(--card); }
+.contact-numbers b { display: block; font-family: var(--serif); font-weight: 400; font-size: clamp(1.3rem, 1.75vw, 1.7rem); line-height: 1.1; color: var(--ink); white-space: nowrap; }
+.contact-numbers li:first-child b { font-size: clamp(2.2rem, 3.6vw, 3.2rem); line-height: 0.9; color: var(--blue); }
+.contact-numbers { align-items: end; }
+.contact-numbers span { display: block; margin-top: 10px; font-size: var(--fs-sm); color: var(--muted); }
+@media (max-width: 960px) {
+  .contact-numbers { grid-template-columns: 1fr 1fr; }
+  .contact-numbers li:nth-child(3) { border-left: 0; }
+  .contact-numbers li:nth-child(3) a { padding-left: 0; }
+  .contact-numbers li:nth-child(n + 3) { border-top: 1px solid var(--line); }
+}
+@media (max-width: 520px) {
+  .contact-numbers { grid-template-columns: 1fr; }
+  .contact-numbers li + li { border-left: 0; border-top: 1px solid var(--line); }
+  .contact-numbers a { padding: 18px 0 8px; }
+}
+.office-card-body { padding-top: clamp(28px, 3.5vw, 40px); }
