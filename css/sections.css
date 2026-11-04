@@ -57,11 +57,14 @@
 .presence { display: grid; grid-template-columns: minmax(0, 6fr) minmax(0, 6fr); gap: 40px 72px; align-items: start; }
 .map {
   position: relative; background: var(--card); border: 1px solid var(--line);
-  aspect-ratio: 4 / 5; overflow: hidden;
+  aspect-ratio: 520 / 572; overflow: hidden;
 }
 .map svg { position: absolute; inset: 0; width: 100%; height: 100%; }
 .map .land { fill: #e6e1d6; stroke: #f8f6f1; stroke-width: 0.8; }
-.map .land--home { fill: #c9d3e6; }
+.map .land--home { fill: #b6c7e6; }
+.map .land--market { fill: #e4ebf5; }
+.map .city--served circle { fill: var(--card); stroke: var(--blue); stroke-width: 1.6; }
+.map .city--served text { font-size: 10.5px; font-weight: 400; fill: var(--ink-2); }
 .map .sea-label { font: italic 13px var(--serif); fill: #9a9a92; letter-spacing: 0.06em; }
 .map .country-label { font: 500 10px var(--sans); fill: #8b8b84; letter-spacing: 0.16em; text-transform: uppercase; }
 .map .route { fill: none; stroke: var(--sky); stroke-width: 1.6; stroke-dasharray: 4 5; }
@@ -81,7 +84,8 @@
 .offices p { grid-column: 1 / -1; font-size: 15px; color: var(--ink-2); }
 @media (max-width: 860px) {
   .presence { grid-template-columns: 1fr; }
-  .map { aspect-ratio: 4 / 5; }
+  .map { aspect-ratio: 520 / 572; }
+  .map .city--served text { font-size: 13px; }
   .map .city text { font-size: 15px; }
   .map .country-label { font-size: 12px; }
   .map .sea-label { font-size: 15px; }
@@ -102,3 +106,17 @@
 .page-hero--tall > picture img { animation: settle 2.4s var(--ease) both; }
 .cta--image > picture img { object-position: 50% 42%; }
 @media (prefers-reduced-motion: reduce) { .hero > picture img, .page-hero--tall > picture img { animation: none; } }
+
+/* map key + wider reach lists */
+.map-legend { display: flex; flex-wrap: wrap; gap: 8px 20px; margin-top: 14px; font-size: 13px; color: var(--ink-2); }
+.map-legend li { display: inline-flex; align-items: center; gap: 8px; }
+.key { display: inline-block; flex: none; }
+.key--office { width: 10px; height: 10px; border-radius: 50%; background: var(--blue); box-shadow: 0 0 0 2px #fff, 0 0 0 3px var(--line); }
+.key--served { width: 9px; height: 9px; border-radius: 50%; background: var(--card); border: 1.6px solid var(--blue); }
+.key--market { width: 14px; height: 10px; background: #e4ebf5; border: 1px solid #c9d4e6; }
+.reach { margin-top: 28px; display: grid; gap: 18px; }
+.reach > div { display: grid; grid-template-columns: 132px minmax(0, 1fr); gap: 8px 16px; align-items: baseline; }
+.reach dt { font-size: var(--fs-xs); letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
+.reach ul { display: flex; flex-wrap: wrap; gap: 6px; }
+.reach li { font-size: 14px; padding: 5px 10px; border: 1px solid var(--line); background: var(--card); }
+@media (max-width: 560px) { .reach > div { grid-template-columns: 1fr; } }
