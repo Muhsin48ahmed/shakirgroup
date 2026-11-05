@@ -1,0 +1,38 @@
+{
+  "comfort-20-120x190": {
+    "piping": "#333330",
+    "seam": 0.238
+  },
+  "comfort-25-150x190": {
+    "piping": null,
+    "seam": null
+  },
+  "shakir-12-90x190-floral": {
+    "piping": null,
+    "seam": null
+  },
+  "shakir-12-90x190-red": {
+    "piping": null,
+    "seam": null
+  },
+  "shakir-15-90x190-olive": {
+    "piping": null,
+    "seam": null
+  },
+  "sweetdream-20-180x200": {
+    "piping": "#353735",
+    "seam": 0.32
+  },
+  "sweetdream-20-90x190": {
+    "piping": null,
+    "seam": null
+  },
+  "sweetdream-25-180x200": {
+    "piping": "#6d6e69",
+    "seam": 0.281
+  },
+  "sweetdream-30-180x200": {
+    "piping": "#4d4f4e",
+    "seam": 0.258
+  }
+}

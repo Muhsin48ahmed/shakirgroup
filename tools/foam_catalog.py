@@ -16,6 +16,8 @@ import urllib.parse
 SITE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 PAGE = os.path.join(SITE, "foam", "index.html")
 PHOTO_DIR = os.path.join(SITE, "img", "products", "foam")
+META_PATH = os.path.join(PHOTO_DIR, "tex", "meta.json")
+QUILTED_BRANDS = {"sweet-dream", "comfort"}   # knitted, quilted covers rather than printed cotton
 WHATSAPP = "https://wa.me/252611111100?text="
 ARROW = ('<svg class="icon" viewBox="0 0 16 16" fill="none" aria-hidden="true">'
          '<path d="M2 8h11m-4-4 4 4-4 4" stroke="currentColor" stroke-width="1.4"/></svg>')
@@ -56,13 +58,14 @@ PRODUCTS = [
     ("shakir", "Red", 12, 90, 190, "single", "shakir-12-90x190-red", [], 1),
     ("shakir", "", 10, 90, 190, "single", None, ["2 covers"], 1),
     ("comfort", "", 25, 150, 190, "double", "comfort-25-150x190", [], 1),
-    ("comfort", "", 20, 120, 190, "three-quarter", "comfort-20-120x190", ["Pillow top"], 1),
+    ("comfort", "", 20, 120, 190, "three-quarter", "comfort-20-120x190", ["Pillow top"], 2),
     ("anfac", "", 12, 90, 190, "single", None, ["2 covers"], 1),
     ("anfac", "", 10, 90, 190, "single", None, ["2 covers"], 1),
     ("five-star", "", 20, 180, 200, "king", None, ["Hotel grade"], 1),
     ("layali", "", 20, 150, 190, "double", None, [], 1),
 ]
 ASSUMED_LENGTH = 190
+META = json.load(open(META_PATH)) if os.path.exists(META_PATH) else {}
 
 
 def esc(text):
@@ -131,6 +134,9 @@ def product_data(p):
         "badges": badges,
         "photos": [f"../img/products/foam/{slug}-{n}.jpg" for n in photos_of(slug)],
         "top": texture(slug, "top"), "side": texture(slug, "side"),
+        "quilted": brand in QUILTED_BRANDS,
+        "piping": META.get(slug, {}).get("piping"),
+        "seam": META.get(slug, {}).get("seam") if layers == 2 else None,
     }
 
 

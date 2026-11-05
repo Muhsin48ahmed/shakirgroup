@@ -3,10 +3,10 @@
    size and wrapped in its own photos, plus the photo gallery.
    Three.js is fetched only the first time someone opens the 3D view. */
 
-const CM = 0.01;                       // scene units are metres
-const PLAIN_COVER = 0xf1ece2;
 const MAX_PIXEL_RATIO = 2;
-const FRAME_MARGIN = 1.15;             // breathing room around the mattress
+const FRAME_MARGIN = 1.05;             // share of the bounding sphere kept in frame; a flat mattress fills less
+const INTRO_PULL = 1.35;               // the camera starts this much further out
+const INTRO_MS = 1400;
 const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 const dialog = document.querySelector("[data-viewer]");
@@ -34,44 +34,81 @@ function loadLibrary() {
   libraryPromise ??= Promise.all([
     import("three"),
     import("three/addons/controls/OrbitControls.js"),
-    import("three/addons/geometries/RoundedBoxGeometry.js"),
-  ]).then(([THREE, controls, box]) => ({
-    THREE, OrbitControls: controls.OrbitControls, RoundedBoxGeometry: box.RoundedBoxGeometry,
+    import("three/addons/environments/RoomEnvironment.js"),
+    import("./foam-model.js"),
+  ]).then(([THREE, controls, room, model]) => ({
+    THREE, OrbitControls: controls.OrbitControls, RoomEnvironment: room.RoomEnvironment, model,
   }));
   return libraryPromise;
 }
 
 /* ---------- Scene ---------- */
 
+function softShadowTexture(THREE) {
+  const size = 256;
+  const canvas = document.createElement("canvas");
+  canvas.width = canvas.height = size;
+  const ctx = canvas.getContext("2d");
+  // shadowBlur (not ctx.filter, which Safari lacks): draw the rectangle off-canvas, keep its blurred shadow
+  const inset = size * 0.2;
+  ctx.shadowColor = "#000";
+  ctx.shadowBlur = size * 0.09;
+  ctx.shadowOffsetX = size * 2;
+  ctx.fillRect(inset - size * 2, inset, size - 2 * inset, size - 2 * inset);
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  return texture;
+}
+
 function createView(lib) {
-  const { THREE, OrbitControls } = lib;
+  const { THREE, OrbitControls, RoomEnvironment } = lib;
   const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, MAX_PIXEL_RATIO));
   renderer.outputColorSpace = THREE.SRGBColorSpace;
-  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMapping = THREE.NeutralToneMapping;   // keeps the covers' colours true
+  renderer.toneMappingExposure = 1.05;
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   el.canvas.append(renderer.domElement);
 
   const scene = new THREE.Scene();
-  const camera = new THREE.PerspectiveCamera(32, 1, 0.01, 60);
-  scene.add(new THREE.HemisphereLight(0xffffff, 0xcfc8ba, 2.2));
-  const sun = new THREE.DirectionalLight(0xffffff, 1.4);
-  sun.castShadow = true;
-  sun.shadow.mapSize.set(1024, 1024);
-  scene.add(sun, sun.target);
+  const pmrem = new THREE.PMREMGenerator(renderer);
+  scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+  scene.environmentIntensity = 0.75;
+  pmrem.dispose();
 
-  const ground = new THREE.Mesh(new THREE.PlaneGeometry(30, 30), new THREE.ShadowMaterial({ opacity: 0.16 }));
+  const camera = new THREE.PerspectiveCamera(28, 1, 0.01, 60);
+  const sun = new THREE.DirectionalLight(0xfff6ea, 1.7);
+  sun.castShadow = true;
+  sun.shadow.mapSize.set(2048, 2048);
+  sun.shadow.bias = -0.0004;
+  sun.shadow.normalBias = 0.01;
+  const fill = new THREE.DirectionalLight(0xe8eef8, 0.35);
+  // a soft light that travels with the camera, so whichever side faces you stays readable
+  const headlight = new THREE.DirectionalLight(0xffffff, 1.05);
+  headlight.position.set(0.4, 0.8, 1);
+  headlight.target.position.set(0, 0, -1);
+  camera.add(headlight, headlight.target);
+  scene.add(sun, sun.target, fill, camera);
+
+  const ground = new THREE.Mesh(new THREE.PlaneGeometry(40, 40), new THREE.ShadowMaterial({ opacity: 0.12 }));
   ground.rotation.x = -Math.PI / 2;
   ground.receiveShadow = true;
-  scene.add(ground);
+  const contact = new THREE.Mesh(
+    new THREE.PlaneGeometry(1, 1),
+    new THREE.MeshBasicMaterial({ map: softShadowTexture(THREE), transparent: true, opacity: 0.55, depthWrite: false }),
+  );
+  contact.rotation.x = -Math.PI / 2;
+  contact.position.y = 0.0005;
+  scene.add(ground, contact);
 
   const controls = new OrbitControls(camera, renderer.domElement);
   controls.enableDamping = true;
+  controls.dampingFactor = 0.07;
   controls.enablePan = false;
-  controls.maxPolarAngle = Math.PI * 0.49;
-  controls.autoRotateSpeed = 1.1;
-  controls.addEventListener("start", () => { controls.autoRotate = false; });
+  controls.maxPolarAngle = Math.PI * 0.47;
+  controls.autoRotateSpeed = 0.8;
+  controls.addEventListener("start", () => { controls.autoRotate = false; view.intro = null; });
 
   const resize = () => {
     const { clientWidth: w, clientHeight: h } = el.canvas;
@@ -82,60 +119,53 @@ function createView(lib) {
   };
   new ResizeObserver(resize).observe(el.canvas);
 
-  return { lib, renderer, scene, camera, controls, sun, resize, mesh: null, frame: 0 };
+  return { lib, renderer, scene, camera, controls, sun, fill, contact, resize, mattress: null, intro: null, frame: 0 };
 }
 
-function coverMaterial(lib, url, repeatX = 1) {
-  const { THREE } = lib;
-  if (!url) return new THREE.MeshStandardMaterial({ color: PLAIN_COVER, roughness: 0.92 });
-  const map = new THREE.TextureLoader().load(url);
-  map.colorSpace = THREE.SRGBColorSpace;
-  map.anisotropy = view.renderer.capabilities.getMaxAnisotropy();
-  map.repeat.set(repeatX, 1);
-  return new THREE.MeshStandardMaterial({ map, roughness: 0.88 });
-}
+function placeMattress(product) {
+  const { lib, renderer, scene, camera, controls, sun, fill, contact } = view;
+  if (view.mattress) {
+    scene.remove(view.mattress);
+    lib.model.disposeMattress(view.mattress);
+  }
+  const { group, width, length, height } = lib.model.buildMattress(lib, renderer, product);
+  view.mattress = group;
+  scene.add(group);
+  contact.scale.set(width * 1.55, length * 1.45, 1);
 
-function disposeMesh(mesh) {
-  if (!mesh) return;
-  view.scene.remove(mesh);
-  mesh.geometry.dispose();
-  new Set(mesh.material).forEach((m) => { m.map?.dispose(); m.dispose(); });
-}
-
-function buildMattress(product) {
-  const { lib, scene, camera, controls, sun } = view;
-  const [w, l, h] = product.dims.map((v) => v * CM);
-  const geometry = new lib.RoundedBoxGeometry(w, h, l, 4, Math.min(h * 0.28, 0.03));
-  const top = coverMaterial(lib, product.top);
-  const longSide = coverMaterial(lib, product.side);
-  const shortSide = coverMaterial(lib, product.side, w / l);
-  // BoxGeometry face order: +x, -x, +y, -y, +z, -z
-  const mesh = new lib.THREE.Mesh(geometry, [longSide, longSide, top, top, shortSide, shortSide]);
-  mesh.position.y = h / 2;
-  mesh.castShadow = true;
-
-  disposeMesh(view.mesh);
-  view.mesh = mesh;
-  scene.add(mesh);
-
-  const reach = Math.hypot(w, l, h);
-  const halfFov = (camera.fov * Math.PI) / 360;
-  const distance = (reach * 0.5 * FRAME_MARGIN) / Math.tan(halfFov) / Math.min(1, camera.aspect);
-  camera.position.copy(new lib.THREE.Vector3(0.95, 0.8, 1.15).normalize().multiplyScalar(distance));
-  controls.target.set(0, h / 2, 0);
-  controls.minDistance = distance * 0.45;
+  const reach = Math.hypot(width, length, height);
+  const halfFovV = (camera.fov * Math.PI) / 360;
+  const halfFovH = Math.atan(Math.tan(halfFovV) * camera.aspect);
+  const distance = (reach * 0.5 * FRAME_MARGIN) / Math.tan(Math.min(halfFovV, halfFovH));
+  const direction = new lib.THREE.Vector3(0.95, 0.72, 1.2).normalize();
+  controls.target.set(0, height * 0.45, 0);
+  controls.minDistance = distance * 0.4;
   controls.maxDistance = distance * 2;
   controls.autoRotate = !reducedMotion;
+  view.intro = reducedMotion ? null : { start: performance.now(), from: distance * INTRO_PULL, to: distance, direction };
+  camera.position.copy(direction).multiplyScalar(reducedMotion ? distance : distance * INTRO_PULL).add(controls.target);
   controls.update();
 
-  sun.position.set(reach * 1.2, reach * 2.2, reach * 1.4);
-  Object.assign(sun.shadow.camera, { left: -reach, right: reach, top: reach, bottom: -reach, far: reach * 6 });
+  sun.position.set(-reach * 0.9, reach * 2.4, reach * 1.3);
+  fill.position.set(reach * 1.5, reach * 0.6, -reach);
+  Object.assign(sun.shadow.camera, { left: -reach, right: reach, top: reach, bottom: -reach, near: 0.01, far: reach * 6 });
   sun.shadow.camera.updateProjectionMatrix();
 }
 
-function loop() {
-  view.controls.update();
-  view.renderer.render(view.scene, view.camera);
+function easeOut(t) {
+  return 1 - (1 - t) ** 3;
+}
+
+function loop(now) {
+  const { intro, camera, controls } = view;
+  if (intro) {
+    const t = Math.min(1, (now - intro.start) / INTRO_MS);
+    const d = intro.from + (intro.to - intro.from) * easeOut(t);
+    camera.position.copy(intro.direction).multiplyScalar(d).add(controls.target);
+    if (t === 1) view.intro = null;
+  }
+  controls.update();
+  view.renderer.render(view.scene, camera);
   view.frame = requestAnimationFrame(loop);
 }
 
@@ -162,10 +192,10 @@ async function show3D() {
     view ??= createView(lib);
     if (!dialog.open || !current) return;
     view.resize();
-    buildMattress(current.product);
+    placeMattress(current.product);
     el.loading.hidden = true;
     stopLoop();
-    loop();
+    view.frame = requestAnimationFrame(loop);
   } catch (error) {
     console.error("Shakir Foam 3D viewer could not start", error);
     has3D = false;
@@ -299,7 +329,7 @@ function init() {
   dialog.querySelector("[data-viewer-close]").addEventListener("click", close);
   dialog.addEventListener("click", (event) => { if (event.target === dialog) close(); });
   // "close" fires a task later, possibly after the next open, so it must not clear `current`
-  dialog.addEventListener("close", stopLoop);
+  dialog.addEventListener("close", () => { if (!dialog.open) stopLoop(); });
 }
 
 init();

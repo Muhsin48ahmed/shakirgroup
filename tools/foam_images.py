@@ -6,15 +6,29 @@ Usage: python3 tools/foam_images.py <raw-dir> <site-dir>
 named p<folder>-<n>.jpg (for example p23-1.jpg). For each product this writes
   img/products/foam/<slug>-<n>.jpg     gallery photos, 1400 px long side
   img/products/foam/tex/<slug>-top.jpg the straight-on face, cropped
-  img/products/foam/tex/<slug>-side.jpg the edge, cropped and laid flat
+  img/products/foam/tex/<slug>-side.jpg the edge, cropped and laid flat,
+                                       top layer up
+  img/products/foam/tex/meta.json      per product: piping colour and the
+                                       height of the layer seam, if any
+Textures are flat-fielded: the studio's light fall-off is divided out so
+the 3D scene's own lights do the shading.
 """
+import json
 import os
 import sys
+
+import numpy as np
 from PIL import Image, ImageOps, ImageFilter
 
 GALLERY_SIDE = 1400
-TEXTURE_SIDE = 1024
-SIDE_TEXTURE_HEIGHT = 160
+TEXTURE_SIDE = 2048
+SIDE_TEXTURE_HEIGHT = 256
+LIGHTING_SAMPLE = 24      # long side, in px, of the blurred light estimate
+FLATTEN_STRENGTH = 0.85   # 1 removes all studio fall-off, 0 keeps the photo as shot
+PIPING_CONTRAST = 35      # how much darker (0-255 luminance) piping is than the cover
+EDGE_BAND = 0.06          # share of the strip height checked for piping at each edge
+SEAM_SEARCH = (0.12, 0.88)
+BAND_INSET = 0.04         # where, across the face, a derived edge strip starts
 BG_DISTANCE = 34          # colour distance that counts as "not background"
 STRIP_FILL = 0.6          # share of an edge-strip column that must be mattress
 STRIP_ROW_SHARE = 0.9     # an edge-strip row must be this close to the fullest row
@@ -26,7 +40,7 @@ PRODUCTS = {
     3: ("shakir-15-150", 3, None),
     4: ("shakir-15-180x190", 1, None),
     5: ("shakir-20-180x200", 3, None),
-    6: ("shakir-15-90x190-damask", 3, 1),
+    6: ("shakir-15-90x190-damask", 3, None),   # its edge shot shows two fabrics; the face is truer
     7: ("shakir-12-90x190-floral", 2, 4),
     8: ("shakir-15-90x190-olive", 2, 1),
     9: ("shakir-12-90x190-red", 2, 4),
@@ -39,11 +53,13 @@ PRODUCTS = {
 }
 
 
-# extra trim on a face crop, as (left, right) shares of its width, where the
-# straight-on photo also caught a strip of the mattress side
+# extra trim on a face crop, as (left, top, right, bottom) shares, where the
+# straight-on photo also caught backdrop or a strip of the mattress side
 FACE_TRIM = {
-    "shakir-12-90x190-floral": (0.15, 0.0),
-    "shakir-15-90x190-olive": (0.0, 0.11),
+    "shakir-12-90x190-floral": (0.20, 0.085, 0.0, 0.02),
+    "shakir-15-150": (0.02, 0.075, 0.0, 0.0),
+    "shakir-15-90x190-olive": (0.0, 0.06, 0.215, 0.0),
+    "shakir-15-90x190-damask": (0.0, 0.06, 0.0, 0.085),
 }
 
 # extra trim on an edge strip after the automatic pass, as
@@ -127,6 +143,76 @@ def tighten_strip(strip):
     return strip.crop((int(cols[0] * sx), int(rows[0] * sy), int((cols[-1] + 1) * sx), int((rows[-1] + 1) * sy)))
 
 
+def flat_field(img):
+    """Divide out the slow light fall-off of the studio photo."""
+    small = img.copy()
+    small.thumbnail((LIGHTING_SAMPLE, LIGHTING_SAMPLE))
+    light = np.asarray(small.filter(ImageFilter.GaussianBlur(2)).resize(img.size, Image.BICUBIC), dtype=np.float32)
+    pixels = np.asarray(img, dtype=np.float32)
+    mean = light.reshape(-1, 3).mean(axis=0)
+    gain = (mean / np.maximum(light, 1.0)) ** FLATTEN_STRENGTH
+    return Image.fromarray(np.clip(pixels * gain, 0, 255).astype(np.uint8))
+
+
+def hex_colour(rgb):
+    return "#" + "".join(f"{int(round(c)):02x}" for c in rgb)
+
+
+def measure_strip(side):
+    """Piping colour (when the edges are clearly darker) and the layer seam height."""
+    pixels = np.asarray(side, dtype=np.float32)
+    luma = pixels[..., 0] * 0.299 + pixels[..., 1] * 0.587 + pixels[..., 2] * 0.114
+    rows = luma.mean(axis=1)
+    cover = float(np.median(rows))
+    band = max(2, int(len(rows) * EDGE_BAND))
+    edges = np.concatenate([np.arange(band), np.arange(len(rows) - band, len(rows))])
+    darkest_edge = edges[np.argmin(rows[edges])]
+    piping = None
+    if cover - rows[darkest_edge] > PIPING_CONTRAST:
+        piping = hex_colour(pixels[darkest_edge].mean(axis=0))
+    lo, hi = (int(len(rows) * f) for f in SEAM_SEARCH)
+    seam_row = lo + int(np.argmin(rows[lo:hi]))
+    seam = round(seam_row / len(rows), 3) if cover - rows[seam_row] > PIPING_CONTRAST else None
+    return {"piping": piping, "seam": seam}
+
+
+def face_texture(img, slug):
+    top = img.crop(mattress_box(img))
+    top = trim(top, *FACE_TRIM.get(slug, (0, 0, 0, 0)))
+    top.thumbnail((TEXTURE_SIDE, TEXTURE_SIDE))
+    return flat_field(top)
+
+
+def edge_texture(img, slug):
+    side = img.crop(mattress_box(img))
+    if side.height > side.width:
+        side = side.rotate(90, expand=True)
+    side = trim(tighten_strip(side), *SIDE_TRIM.get(slug, (0, 0, 0, 0)))
+    # the edge photos are shot with the mattress top facing down the frame
+    side = ImageOps.flip(side.resize((TEXTURE_SIDE, SIDE_TEXTURE_HEIGHT), Image.LANCZOS))
+    return flat_field(side)
+
+
+def dims_from_slug(slug):
+    """(thickness, width) in cm from a slug such as shakir-15-180x190 or shakir-15-150."""
+    _, thickness, size = slug.split("-")[:3]
+    return int(thickness), int(size.split("x")[0])
+
+
+def side_from_face(face, slug):
+    """An edge strip cut from the face photo, for models never shot edge-on.
+
+    The covers use one fabric all round, so a band of the face as wide as the
+    mattress is thick, turned to run along the length, has the right pattern
+    at the right scale. The band is taken just inside the edge piping.
+    """
+    thickness, width = dims_from_slug(slug)
+    band = max(8, int(face.width * thickness / width))
+    start = int(face.width * BAND_INSET)
+    strip = face.crop((start, 0, start + band, face.height)).rotate(90, expand=True)
+    return strip.resize((TEXTURE_SIDE, SIDE_TEXTURE_HEIGHT), Image.LANCZOS)
+
+
 def save_jpeg(img, path, quality=80):
     img.save(path, "JPEG", quality=quality, optimize=True, progressive=True)
 
@@ -135,30 +221,26 @@ def main(raw, site):
     out = os.path.join(site, "img", "products", "foam")
     tex = os.path.join(out, "tex")
     os.makedirs(tex, exist_ok=True)
+    meta = {}
     for folder, (slug, face, edge) in PRODUCTS.items():
+        photo = lambda n: os.path.join(raw, f"p{folder:02d}-{n}.jpg")
         for n in range(1, 5):
-            src = os.path.join(raw, f"p{folder:02d}-{n}.jpg")
-            if not os.path.exists(src):
-                continue
-            img = load(src)
-            img.thumbnail((GALLERY_SIDE, GALLERY_SIDE))
-            save_jpeg(img, os.path.join(out, f"{slug}-{n}.jpg"), 78)
+            if os.path.exists(photo(n)):
+                img = load(photo(n))
+                img.thumbnail((GALLERY_SIDE, GALLERY_SIDE))
+                save_jpeg(img, os.path.join(out, f"{slug}-{n}.jpg"), 78)
         if face:
-            img = load(os.path.join(raw, f"p{folder:02d}-{face}.jpg"))
-            top = img.crop(mattress_box(img))
-            left, right = FACE_TRIM.get(slug, (0.0, 0.0))
-            top = trim(top, left, 0, right, 0)
-            top.thumbnail((TEXTURE_SIDE, TEXTURE_SIDE))
-            save_jpeg(top, os.path.join(tex, f"{slug}-top.jpg"))
+            top = face_texture(load(photo(face)), slug)
+            save_jpeg(top, os.path.join(tex, f"{slug}-top.jpg"), 82)
+            if not edge:
+                save_jpeg(side_from_face(top, slug), os.path.join(tex, f"{slug}-side.jpg"), 82)
         if edge:
-            img = load(os.path.join(raw, f"p{folder:02d}-{edge}.jpg"))
-            side = img.crop(mattress_box(img))
-            if side.height > side.width:
-                side = side.rotate(90, expand=True)
-            side = trim(tighten_strip(side), *SIDE_TRIM.get(slug, (0, 0, 0, 0)))
-            side = side.resize((TEXTURE_SIDE, SIDE_TEXTURE_HEIGHT))
-            save_jpeg(side, os.path.join(tex, f"{slug}-side.jpg"))
-        print("ok", slug)
+            side = edge_texture(load(photo(edge)), slug)
+            save_jpeg(side, os.path.join(tex, f"{slug}-side.jpg"), 82)
+            meta[slug] = measure_strip(side)
+        print("ok", slug, meta.get(slug, ""))
+    with open(os.path.join(tex, "meta.json"), "w") as f:
+        json.dump(meta, f, indent=2, sort_keys=True)
 
 
 if __name__ == "__main__":
