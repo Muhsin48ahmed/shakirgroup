@@ -60,7 +60,9 @@ From the sub-site's About page, product range section (S2):
 
 ### Recognition
 - **Best General Trading Company of the Year**, 7th Somali Business Awards (SOBA), Mogadishu. Reported by Capital FM on 8 September 2026, alongside Best Foam Factory of the Year for Shakir Foam (S8).
-  - Quote from Abdiaziz Ali Ahmed, CEO of Shakir Group: "We are honored to receive these two national recognitions. They reflect the dedication of our teams, the trust of our customers and the support of our partners." (S8)
+  - Quotes from Abdiaziz Ali Ahmed, CEO of Shakir Group, both in S8. The name is as S8 prints it, and the user confirmed it on 2026-11-05.
+    - "We are honored to receive these two national recognitions. They reflect the dedication of our teams, the trust of our customers and the support of our partners."
+    - "For us, these awards are not simply a celebration of what we have achieved; they are a responsibility to continue improving, investing and building businesses that create lasting value for Somalia." **This one is used on the page**, credited "Abdiaziz Ali Ahmed, CEO, Shakir Group".
 - **Best General Trading Company of the Year 2024**, East Africa Somali Awards, presented April 2025, from the trophy in the award photo (S9). The sub-site lists EASA awards in 2025 and 2026 (S2).
 
 ### Images available
