@@ -3,6 +3,8 @@
    photos, with piping where the cover has it and a separate pillow-top
    layer on double-layer models. Units are metres. */
 
+import { copyOf, formatsReady, isPhone, pick } from "./foam-media.js";
+
 const CM = 0.01;
 const SEGMENTS = { across: 64, thick: 10 };
 const ROUNDNESS = 0.34;              // edge radius as a share of the body height
@@ -18,6 +20,11 @@ const PLAIN_COVER = 0xf1ece2;
 const BUMP_QUILTED = 6;             // relief taken from the cover photo's light and dark
 const BUMP_PRINTED = 1.5;
 const FINITE_STEP = 0.0015;
+const PHONE_TEXTURE = 1024;          // long side of the phone set of covers (the full set is 2048)
+const SMALL_GPU_TEXTURE = 4096;
+
+// loaded with the 3D view, when the format probes have almost always settled; this makes sure
+await formatsReady;
 
 const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
 const falloff = (t) => clamp(1 - t ** 4, 0, 1);
@@ -96,8 +103,26 @@ function pipingAround(THREE, shape, size, y, colour) {
 
 /* ---------- Materials ---------- */
 
-function loadTexture(THREE, renderer, url) {
-  const texture = new THREE.TextureLoader().load(url);
+/* Phones get the 1024 px covers: the canvas there is under 1000 device px
+   across, so the 2048 px set only costs mobile data. A GPU that cannot
+   hold a 4096 px texture is a low-end one, and gets them too. */
+function textureSize(renderer) {
+  return isPhone() || renderer.capabilities.maxTextureSize < SMALL_GPU_TEXTURE ? PHONE_TEXTURE : null;
+}
+
+function loadTexture(THREE, renderer, jpegUrl) {
+  const size = textureSize(renderer);
+  const url = copyOf(jpegUrl, { size, format: pick(["webp"]) });
+  const fallback = copyOf(jpegUrl, { size });
+  const texture = new THREE.TextureLoader().load(url, undefined, undefined, () => {
+    if (url === fallback) return console.error("Shakir Foam 3D viewer: cover texture missing", url);
+    console.warn("Shakir Foam 3D viewer: falling back to JPEG for", url);
+    // what TextureLoader itself does on load, so the cloned side bands pick it up too
+    new THREE.ImageLoader().load(fallback, (image) => {
+      texture.image = image;
+      texture.needsUpdate = true;
+    });
+  });
   texture.colorSpace = THREE.SRGBColorSpace;
   texture.anisotropy = renderer.capabilities.getMaxAnisotropy();
   return texture;

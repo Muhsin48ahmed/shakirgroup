@@ -3,7 +3,12 @@
    size and wrapped in its own photos, plus the photo gallery.
    Three.js is fetched only the first time someone opens the 3D view. */
 
+import { copyOf, isPhone, pick } from "./foam-media.js";
+
 const MAX_PIXEL_RATIO = 2;
+const PHONE_PHOTO = 700;               // long side of the gallery copy phones get (the original is 1400)
+const THUMB_PHOTO = 320;               // long side of the thumbnail copy
+const THUMB_SIDE = 64;                 // css px, as .viewer-thumb in css/foam.css
 const FRAME_MARGIN = 1.05;             // share of the bounding sphere kept in frame; a flat mattress fills less
 const INTRO_PULL = 1.35;               // the camera starts this much further out
 const INTRO_MS = 1400;
@@ -205,9 +210,15 @@ async function show3D() {
   }
 }
 
+/* A gallery photo as this browser should fetch it: AVIF or WebP when it
+   can show them, and the 700 px copy on phones. */
+function photoUrl(src, size) {
+  return copyOf(src, { size, format: pick(["avif", "webp"]) });
+}
+
 function showPhoto(src, alt) {
   showStage("photo");
-  el.photo.src = src;
+  el.photo.src = photoUrl(src, isPhone() ? PHONE_PHOTO : null);
   el.photo.alt = alt;
 }
 
@@ -240,9 +251,11 @@ function renderThumbs() {
   }
   product.photos.forEach((src, i) => {
     const img = document.createElement("img");
-    img.src = src;
+    img.src = photoUrl(src, THUMB_PHOTO);
     img.alt = "";
     img.loading = "lazy";
+    img.decoding = "async";
+    img.width = img.height = THUMB_SIDE;
     const alt = `${product.name}, photo ${i + 1} of ${product.photos.length}`;
     buttons.push(thumbButton(`Photo ${i + 1}`, img, () => showPhoto(src, alt)));
   });

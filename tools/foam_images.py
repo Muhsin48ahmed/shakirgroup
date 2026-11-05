@@ -12,6 +12,8 @@ named p<folder>-<n>.jpg (for example p23-1.jpg). For each product this writes
                                        height of the layer seam, if any
 Textures are flat-fielded: the studio's light fall-off is divided out so
 the 3D scene's own lights do the shading.
+It then runs tools/foam_variants.py, which writes the phone-sized, WebP and
+AVIF copies of everything above.
 """
 import json
 import os
@@ -19,6 +21,8 @@ import sys
 
 import numpy as np
 from PIL import Image, ImageOps, ImageFilter
+
+import foam_variants
 
 GALLERY_SIDE = 1400
 TEXTURE_SIDE = 2048
@@ -241,6 +245,7 @@ def main(raw, site):
         print("ok", slug, meta.get(slug, ""))
     with open(os.path.join(tex, "meta.json"), "w") as f:
         json.dump(meta, f, indent=2, sort_keys=True)
+    foam_variants.main(site)
 
 
 if __name__ == "__main__":

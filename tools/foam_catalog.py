@@ -6,6 +6,8 @@ Rewrites the blocks between the <!-- generated:NAME --> markers in
 foam/index.html. Product facts come from foam.shakirgroup.com/products.
 Models with no photo on that site (their image links return 404) are drawn
 to scale instead of shown with a stock or invented picture.
+Run tools/foam_variants.py first: card photos link its AVIF, WebP and
+phone-sized copies.
 """
 import html
 import json
@@ -65,6 +67,12 @@ PRODUCTS = [
     ("layali", "", 20, 150, 190, "double", None, [], 1),
 ]
 ASSUMED_LENGTH = 190
+CARD_SIDE = 720                     # card photos are square
+CARD_SMALL = 360                    # the copy tools/foam_variants.py writes for phones
+CARD_FORMATS = (("avif", "image/avif"), ("webp", "image/webp"))
+# rendered width of a card photo, from the grids in css/foam.css (gutter 16 px on phones, --max 1240 px)
+CATALOG_SIZES = "(max-width: 760px) calc(50vw - 23px), (max-width: 1100px) 31vw, 272px"
+BRAND_SIZES = "(max-width: 560px) calc(100vw - 32px), (max-width: 960px) 46vw, 368px"
 META = json.load(open(META_PATH)) if os.path.exists(META_PATH) else {}
 
 
@@ -86,6 +94,25 @@ def photos_of(slug):
     if not slug:
         return []
     return [n for n in range(1, 5) if os.path.exists(os.path.join(PHOTO_DIR, f"{slug}-{n}.jpg"))]
+
+
+def picture(slug, alt, sizes):
+    """A card photo as <picture>: AVIF, then WebP, then JPEG, each at 360 and 720 px.
+
+    Only the copies tools/foam_variants.py has written are listed, so a
+    missing copy falls back to the plain JPEG rather than a broken link.
+    """
+    base = f"img/products/{slug}"
+
+    def srcset(ext):
+        files = [(f"{base}-{CARD_SMALL}.{ext}", CARD_SMALL), (f"{base}.{ext}", CARD_SIDE)]
+        return ", ".join(f"../{path} {w}w" for path, w in files if os.path.exists(os.path.join(SITE, path)))
+
+    sources = "".join(f'<source type="{mime}" srcset="{srcset(ext)}" sizes="{sizes}">'
+                      for ext, mime in CARD_FORMATS if srcset(ext))
+    img = (f'<img src="../{base}.jpg" srcset="{srcset("jpg")}" sizes="{sizes}" alt="{esc(alt)}" loading="lazy" '
+           f'decoding="async" width="{CARD_SIDE}" height="{CARD_SIDE}">')
+    return f"<picture>{sources}{img}</picture>"
 
 
 def texture(slug, part):
@@ -149,8 +176,7 @@ def card(p):
     brand, cover, cm, w, l, size, slug, badges, layers = p
     name, dims = name_of(p), size_label(p)
     if slug:
-        media = (f'<img src="../img/products/{slug}.jpg" alt="{esc(name)} mattress" loading="lazy" '
-                 'decoding="async" width="720" height="720">')
+        media = picture(slug, f"{name} mattress", CATALOG_SIZES)
     else:
         media = drawing(w, l or ASSUMED_LENGTH, cm, f"{name} mattress, drawn to scale")
     data = esc(json.dumps(product_data(p), ensure_ascii=False, separators=(",", ":")))
@@ -172,8 +198,7 @@ def brand_card(slug, name, blurb):
     photographed = [p for p in models if p[6]]
     shown = next((p for p in photographed if p[6] == BRAND_PHOTO.get(slug)), photographed[0] if photographed else None)
     if shown:
-        media = (f'<div class="brand-photo"><img src="../img/products/{shown[6]}.jpg" alt="" loading="lazy" '
-                 'decoding="async" width="720" height="720"></div>')
+        media = f'<div class="brand-photo">{picture(shown[6], "", BRAND_SIZES)}</div>'
     else:
         p = models[0]
         media = (f'<div class="brand-photo brand-photo--drawn">'
