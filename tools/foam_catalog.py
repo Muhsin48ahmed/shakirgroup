@@ -80,6 +80,18 @@ def esc(text):
     return html.escape(text, quote=True)
 
 
+def slug_of(p):
+    """The mattress's link name, e.g. sweet-dream-30-180x200 or shakir-15-90x190-damask.
+
+    It is the part of a shared link after the #, so it must stay the same
+    once published: brand, thickness, size, then the cover when one brand
+    has two covers in the same size.
+    """
+    brand, cover, cm, w, l, *_ = p
+    size = f"{w}x{l}" if l else f"{w}"
+    return f"{brand}-{cm}-{size}" + (f"-{cover.lower()}" if cover else "")
+
+
 def name_of(p):
     brand, cover, cm = p[0], p[1], p[2]
     return f"{BRAND_NAMES[brand]} {cm} cm" + (f" · {cover}" if cover else "")
@@ -156,7 +168,7 @@ def drawing(w, l, h, label):
 def product_data(p):
     brand, cover, cm, w, l, size, slug, badges, layers = p
     return {
-        "name": name_of(p), "brand": BRAND_NAMES[brand], "size": size_label(p),
+        "slug": slug_of(p), "name": name_of(p), "brand": BRAND_NAMES[brand], "size": size_label(p),
         "dims": [w, l or ASSUMED_LENGTH, cm], "lengthKnown": bool(l), "layers": layers,
         "badges": badges,
         "photos": [f"../img/products/foam/{slug}-{n}.jpg" for n in photos_of(slug)],
@@ -183,7 +195,7 @@ def card(p):
     badge_html = "".join(f"<li>{esc(b)}</li>" for b in badges)
     note = "" if slug else '<span class="product-note">Drawn to scale</span>'
     return (
-        f'          <li class="product{"" if slug else " product--drawn"}" data-size="{size}" data-brand="{brand}" data-product="{data}">'
+        f'          <li class="product{"" if slug else " product--drawn"}" id="{slug_of(p)}" data-size="{size}" data-brand="{brand}" data-product="{data}">'
         f'<div class="product-img">{media}<span class="product-cat">{esc(BRAND_NAMES[brand])}</span>{note}'
         f'<button class="product-view" type="button" data-view><span>View in 3D</span>'
         f'<span class="sr-only">: {esc(name)}, {esc(dims)}</span></button></div>'
@@ -207,7 +219,7 @@ def brand_card(slug, name, blurb):
     count = len(models)
     noun = "mattress" if count == 1 else "mattresses"
     return (
-        f'          <li class="reveal"><a class="brand-card" href="#range" data-brand-link="{slug}">{media}'
+        f'          <li class="reveal"><a class="brand-card" href="?brand={slug}#range" data-brand-link="{slug}">{media}'
         f'<div class="brand-body"><h3>{esc(name)}</h3><p>{esc(blurb)}</p>'
         f'<span class="brand-more">See {"the" if count == 1 else f"all {count}"} {noun} {ARROW}</span></div></a></li>'
     )
@@ -248,7 +260,15 @@ def replace_block(page, name, content):
     return pattern.sub(lambda m: m.group(1) + content.rstrip("\n") + "\n" + m.group(2).lstrip(), page)
 
 
+def check_slugs():
+    slugs = [slug_of(p) for p in PRODUCTS]
+    repeated = sorted({s for s in slugs if slugs.count(s) > 1})
+    if repeated:
+        raise SystemExit(f"two mattresses share a link name: {', '.join(repeated)}")
+
+
 def main():
+    check_slugs()
     page = open(PAGE, encoding="utf-8").read()
     page = replace_block(page, "brands", "\n".join(brand_card(*b) for b in BRANDS))
     page = replace_block(page, "catalog", filters())

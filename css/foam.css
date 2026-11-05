@@ -299,7 +299,17 @@ a.brand-card:hover .brand-more svg { transform: translateX(3px); }
 .viewer-specs dd { text-align: right; }
 .viewer-info .badges { margin: 0; }
 .viewer-note { font-size: var(--fs-sm); color: var(--ink-2); }
-.viewer-info .btn { margin-top: auto; align-self: flex-start; }
+.viewer-actions { margin-top: auto; display: flex; flex-direction: column; align-items: flex-start; gap: 12px; }
+.viewer-share { display: flex; flex-wrap: wrap; gap: 8px; }
+.viewer-share-btn {
+  display: inline-flex; align-items: center; min-height: 40px; padding: 0 16px;
+  border: 1px solid var(--line); border-radius: 999px; background: transparent;
+  font: inherit; font-size: var(--fs-sm); color: var(--ink); cursor: pointer;
+  transition: border-color 0.2s var(--ease);
+}
+.viewer-share-btn:hover { border-color: var(--ink); }
+.viewer-share-btn:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+.viewer-share-status { min-height: 1.4em; margin: 0; font-size: var(--fs-xs); color: var(--ink-2); }
 .viewer-close {
   position: absolute; top: 18px; right: 18px; width: 44px; height: 44px; display: grid; place-items: center;
   background: transparent; border: 1px solid var(--line); border-radius: 999px; cursor: pointer; color: var(--ink);
@@ -313,6 +323,7 @@ a.brand-card:hover .brand-more svg { transform: translateX(3px); }
   .viewer-info { gap: 14px; padding: 20px 16px 24px; max-height: 46dvh; }
   .viewer-close { position: fixed; top: 12px; right: 12px; background: var(--paper); z-index: 2; }
   .viewer-info .eyebrow { padding-right: 0; }
+  .viewer-share-btn { min-height: 44px; }
 }
 @media (prefers-reduced-motion: reduce) { .viewer[open] { animation: none; } }
 .filter.is-empty:not([aria-pressed="true"]) { opacity: 0.45; }

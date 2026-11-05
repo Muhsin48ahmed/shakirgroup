@@ -4,6 +4,7 @@
    Three.js is fetched only the first time someone opens the 3D view. */
 
 import { copyOf, isPhone, pick } from "./foam-media.js";
+import { createShare } from "./foam-share.js";
 
 const MAX_PIXEL_RATIO = 2;
 const PHONE_PHOTO = 700;               // long side of the gallery copy phones get (the original is 1400)
@@ -12,6 +13,7 @@ const THUMB_SIDE = 64;                 // css px, as .viewer-thumb in css/foam.c
 const FRAME_MARGIN = 1.05;             // share of the bounding sphere kept in frame; a flat mattress fills less
 const INTRO_PULL = 1.35;               // the camera starts this much further out
 const INTRO_MS = 1400;
+const VIEWER_ENTRY = "foamViewer";   // history.state key: this entry was added by opening the viewer
 const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 const dialog = document.querySelector("[data-viewer]");
@@ -34,6 +36,7 @@ let libraryPromise = null;
 let view = null;           // the Three.js scene, created once
 let current = null;        // { product, card }
 let has3D = true;
+const showShare = dialog ? createShare(dialog) : () => {};
 
 function loadLibrary() {
   libraryPromise ??= Promise.all([
@@ -311,21 +314,24 @@ function fillDetails(product, card) {
   el.badges.hidden = !product.badges.length;
   el.note.textContent = noteFor(product);
   el.ask.href = card.querySelector(".ask-price")?.href ?? el.ask.href;
+  showShare(product);
 }
 
+/* Shows `card` in the viewer. Returns false if its product data can't be read. */
 function open(card) {
   let product;
   try {
-    product = JSON.parse(card.dataset.product);
+    product = { slug: card.id, ...JSON.parse(card.dataset.product) };
   } catch (error) {
     console.error("Shakir Foam viewer: bad product data", error);
-    return;
+    return false;
   }
   current = { product, card };
   fillDetails(product, card);
   renderThumbs();
-  dialog.showModal();
+  if (!dialog.open) dialog.showModal();
   selectThumb(el.thumbs.querySelector("button"));
+  return true;
 }
 
 function close() {
@@ -333,16 +339,73 @@ function close() {
   dialog.close();
 }
 
+/* ---------- Links: #slug opens a mattress; Back closes it ---------- */
+
+function pageUrl() {
+  return location.pathname + location.search;
+}
+
+/* The catalogue card a #hash names, or null for any other hash. */
+function cardFor(hash) {
+  let id;
+  try {
+    id = decodeURIComponent(hash.slice(1));
+  } catch {
+    return null;
+  }
+  const card = id ? document.getElementById(id) : null;
+  return card?.matches("[data-catalog] .product[data-product]") ? card : null;
+}
+
+/* Opens the viewer as its own history entry, so Back closes it and the address bar holds its link. */
+function openEntry(card) {
+  if (open(card)) history.pushState({ [VIEWER_ENTRY]: card.id }, "", `${pageUrl()}#${card.id}`);
+}
+
+/* When the viewer is closed by its own controls: drop the mattress from the URL without scrolling.
+   Called once per close, as it happens; Back has already left the entry, so it doesn't call this. */
+function leaveEntry() {
+  if (history.state?.[VIEWER_ENTRY]) history.back();
+  else if (cardFor(location.hash)) history.replaceState(history.state, "", pageUrl());
+}
+
+function closeByUser() {
+  close();
+  leaveEntry();
+}
+
+/* Back, Forward, or a #slug typed into the address bar. */
+function followHistory() {
+  const card = cardFor(location.hash);
+  if (card && (!dialog.open || card !== current?.card)) open(card);
+  else if (!card && dialog.open) close();
+}
+
+/* A shared link: put the page under the mattress, so Back closes the viewer instead of leaving.
+   The card is scrolled to first: the page entry keeps that position, and Back returns to it. */
+function openFromLink() {
+  const card = cardFor(location.hash);
+  if (!card) return;
+  history.replaceState(null, "", pageUrl());
+  card.scrollIntoView({ block: "center" });
+  openEntry(card);
+}
+
 function init() {
   if (!dialog || typeof dialog.showModal !== "function") return;
   if (window.matchMedia("(pointer: coarse)").matches) el.hint.textContent = "Drag to turn · pinch to zoom";
   document.querySelectorAll("[data-view]").forEach((button) =>
-    button.addEventListener("click", () => open(button.closest(".product")))
+    button.addEventListener("click", () => openEntry(button.closest(".product")))
   );
-  dialog.querySelector("[data-viewer-close]").addEventListener("click", close);
-  dialog.addEventListener("click", (event) => { if (event.target === dialog) close(); });
-  // "close" fires a task later, possibly after the next open, so it must not clear `current`
+  dialog.querySelector("[data-viewer-close]").addEventListener("click", closeByUser);
+  dialog.addEventListener("click", (event) => { if (event.target === dialog) closeByUser(); });
+  // Escape, or Android's back gesture: the dialog closes itself straight after
+  dialog.addEventListener("cancel", leaveEntry);
+  // "close" fires a task later (Chrome waits for a frame), possibly after the next open,
+  // so it must not clear `current` or touch the URL
   dialog.addEventListener("close", () => { if (!dialog.open) stopLoop(); });
+  window.addEventListener("popstate", followHistory);
+  openFromLink();
 }
 
 init();
