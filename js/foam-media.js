@@ -49,3 +49,12 @@ export function copyOf(jpegUrl, { size = null, format = "jpg" } = {}) {
   if (!size && format === "jpg") return jpegUrl;
   return jpegUrl.replace(/\.jpg$/, `${size ? `-${size}` : ""}.${format}`);
 }
+
+const PHONE_COVER = 1024;   // long side of the phone set of 3D covers (the full set is 2048)
+
+/* The cover texture the 3D model should fetch: WebP when the browser shows it,
+   and the 1024 px set on phones or on a GPU that can't hold large textures. */
+export function coverUrl(jpegUrl, { isSmallGpu = false, format = pick(["webp"]) } = {}) {
+  const size = isPhone() || isSmallGpu ? PHONE_COVER : null;
+  return copyOf(jpegUrl, { size, format });
+}

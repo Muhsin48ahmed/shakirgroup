@@ -3,7 +3,7 @@
    size and wrapped in its own photos, plus the photo gallery.
    Three.js is fetched only the first time someone opens the 3D view. */
 
-import { copyOf, isPhone, pick } from "./foam-media.js";
+import { copyOf, coverUrl, isPhone, pick } from "./foam-media.js";
 import { createShare } from "./foam-share.js";
 
 const MAX_PIXEL_RATIO = 2;
@@ -13,7 +13,10 @@ const THUMB_SIDE = 64;                 // css px, as .viewer-thumb in css/foam.c
 const FRAME_MARGIN = 1.05;             // share of the bounding sphere kept in frame; a flat mattress fills less
 const INTRO_PULL = 1.35;               // the camera starts this much further out
 const INTRO_MS = 1400;
+const ROTATE_MS = 5000;                // auto-rotation stops itself after this; the toggle restarts it (WCAG 2.2.2)
+const COVER_WAIT_MS = 4000;            // the longest "Loading 3D view…" waits for the cover photos
 const VIEWER_ENTRY = "foamViewer";   // history.state key: this entry was added by opening the viewer
+const NO_3D_LABEL = { photos: "View photos", drawing: "View drawing" };
 const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 const dialog = document.querySelector("[data-viewer]");
@@ -23,6 +26,8 @@ const el = dialog && {
   drawing: dialog.querySelector("[data-viewer-drawing]"),
   hint: dialog.querySelector("[data-viewer-hint]"),
   loading: dialog.querySelector("[data-viewer-loading]"),
+  rotate: dialog.querySelector("[data-viewer-rotate]"),
+  notice: dialog.querySelector("[data-viewer-notice]"),
   thumbs: dialog.querySelector("[data-viewer-thumbs]"),
   brand: dialog.querySelector("[data-viewer-brand]"),
   name: dialog.querySelector("[data-viewer-name]"),
@@ -35,7 +40,9 @@ const el = dialog && {
 let libraryPromise = null;
 let view = null;           // the Three.js scene, created once
 let current = null;        // { product, card }
-let has3D = true;
+let has3D = null;          // null until the first open checks for WebGL
+let rotateTimer = 0;
+const prefetched = new Map();   // cover URL -> Image, fetched while three.js loads
 const showShare = dialog ? createShare(dialog) : () => {};
 
 function loadLibrary() {
@@ -116,7 +123,7 @@ function createView(lib) {
   controls.enablePan = false;
   controls.maxPolarAngle = Math.PI * 0.47;
   controls.autoRotateSpeed = 0.8;
-  controls.addEventListener("start", () => { controls.autoRotate = false; view.intro = null; });
+  controls.addEventListener("start", () => { setRotating(false); view.intro = null; });
 
   const resize = () => {
     const { clientWidth: w, clientHeight: h } = el.canvas;
@@ -130,13 +137,14 @@ function createView(lib) {
   return { lib, renderer, scene, camera, controls, sun, fill, contact, resize, mattress: null, intro: null, frame: 0 };
 }
 
+/* Places the product's mattress and frames it. Returns a promise that settles when its cover photos are on. */
 function placeMattress(product) {
   const { lib, renderer, scene, camera, controls, sun, fill, contact } = view;
   if (view.mattress) {
     scene.remove(view.mattress);
     lib.model.disposeMattress(view.mattress);
   }
-  const { group, width, length, height } = lib.model.buildMattress(lib, renderer, product);
+  const { group, width, length, height, covers } = lib.model.buildMattress(lib, renderer, product);
   view.mattress = group;
   scene.add(group);
   contact.scale.set(width * 1.55, length * 1.45, 1);
@@ -149,7 +157,7 @@ function placeMattress(product) {
   controls.target.set(0, height * 0.45, 0);
   controls.minDistance = distance * 0.4;
   controls.maxDistance = distance * 2;
-  controls.autoRotate = !reducedMotion;
+  setRotating(false);
   view.intro = reducedMotion ? null : { start: performance.now(), from: distance * INTRO_PULL, to: distance, direction };
   camera.position.copy(direction).multiplyScalar(reducedMotion ? distance : distance * INTRO_PULL).add(controls.target);
   controls.update();
@@ -158,6 +166,15 @@ function placeMattress(product) {
   fill.position.set(reach * 1.5, reach * 0.6, -reach);
   Object.assign(sun.shadow.camera, { left: -reach, right: reach, top: reach, bottom: -reach, near: 0.01, far: reach * 6 });
   sun.shadow.camera.updateProjectionMatrix();
+  return covers;
+}
+
+/* Turns the slow auto-rotation on or off. `stopAfter` ends a rotation the visitor didn't ask for. */
+function setRotating(isOn, { stopAfter = 0 } = {}) {
+  clearTimeout(rotateTimer);
+  if (view) view.controls.autoRotate = isOn;
+  el.rotate.setAttribute("aria-pressed", String(isOn));
+  if (isOn && stopAfter) rotateTimer = setTimeout(() => setRotating(false), stopAfter);
 }
 
 function easeOut(t) {
@@ -185,32 +202,91 @@ function stopLoop() {
 /* ---------- Views: 3D, photos, drawing ---------- */
 
 function showStage(kind) {
-  el.canvas.hidden = kind !== "3d";
-  el.hint.hidden = kind !== "3d";
+  const is3D = kind === "3d";
+  el.canvas.hidden = !is3D;
   el.photo.hidden = kind !== "photo";
   el.drawing.hidden = kind !== "drawing";
-  if (kind !== "3d") stopLoop();
+  // the hint, the rotation toggle and "Loading" belong to a 3D view that is ready, or on its way
+  el.hint.hidden = true;
+  el.rotate.hidden = true;
+  el.loading.hidden = !is3D;
+  if (!is3D) stopLoop();
+}
+
+const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+/* Still showing the 3D view of the same opening of the viewer? */
+function isShowing3D(shown) {
+  return dialog.open && current === shown && !el.canvas.hidden;
 }
 
 async function show3D() {
   showStage("3d");
-  el.loading.hidden = Boolean(view);
+  const shown = current;
   try {
     const lib = await loadLibrary();
     view ??= createView(lib);
-    if (!dialog.open || !current) return;
+    if (!isShowing3D(shown)) return;
     view.resize();
-    placeMattress(current.product);
-    el.loading.hidden = true;
+    const covers = placeMattress(shown.product);
     stopLoop();
     view.frame = requestAnimationFrame(loop);
+    // the plain cover shows straight away; "Loading" stays until the photos are on it
+    await Promise.race([covers, wait(COVER_WAIT_MS)]);
+    if (!isShowing3D(shown)) return;
+    el.loading.hidden = true;
+    el.hint.hidden = false;
+    el.rotate.hidden = false;
+    setRotating(!reducedMotion, { stopAfter: ROTATE_MS });
   } catch (error) {
     console.error("Shakir Foam 3D viewer could not start", error);
-    has3D = false;
-    el.loading.hidden = true;
-    renderThumbs();
-    selectThumb(el.thumbs.querySelector("button"));
+    without3D();
   }
+}
+
+/* 3D can't start here: show the photos or the plan instead, keep focus in the dialog, and say why. */
+function without3D() {
+  has3D = false;
+  relabelCards();
+  if (!dialog.open || !current) return;
+  const hadFocus = !dialog.contains(document.activeElement) || el.thumbs.contains(document.activeElement);
+  renderThumbs();
+  const first = el.thumbs.querySelector("button");
+  selectThumb(first);
+  if (hadFocus) first?.focus();
+  el.note.textContent = noteFor(current.product);
+  el.notice.textContent = `The 3D view isn’t available on this device, so the ${
+    current.product.photos.length ? "photos are" : "drawing to scale is"} shown instead.`;
+}
+
+function supportsWebGL() {
+  try {
+    const canvas = document.createElement("canvas");
+    const gl = canvas.getContext("webgl2") || canvas.getContext("webgl");
+    gl?.getExtension("WEBGL_lose_context")?.loseContext();
+    return Boolean(gl);
+  } catch {
+    return false;
+  }
+}
+
+/* Once 3D is known to be missing, the cards stop promising it. */
+function relabelCards() {
+  document.querySelectorAll("[data-catalog] .product").forEach((card) => {
+    const label = card.querySelector(".product-view > span:first-child");
+    if (label) label.textContent = card.classList.contains("product--drawn") ? NO_3D_LABEL.drawing : NO_3D_LABEL.photos;
+  });
+}
+
+/* Starts the cover photos downloading while three.js loads, so they're cached when the model asks. */
+function prefetchCovers(product) {
+  [product.top, product.side].filter(Boolean).map((src) => coverUrl(src)).forEach((url) => {
+    if (prefetched.has(url)) return;
+    const image = new Image();
+    image.crossOrigin = "anonymous";   // as three.js's loader asks, so the cached copy matches
+    image.src = url;
+    prefetched.set(url, image);
+  });
 }
 
 /* A gallery photo as this browser should fetch it: AVIF or WebP when it
@@ -290,10 +366,15 @@ function specRow(term, detail) {
 }
 
 function noteFor(product) {
+  const lengthNote = product.lengthKnown ? "" : " The length isn’t listed, so it is shown at 190 cm.";
+  if (!has3D) {
+    return product.photos.length
+      ? `The 3D view isn’t available on this device; the photos show the actual cover.${lengthNote}`
+      : "We don’t have a photo of this model yet, and the 3D view isn’t available on this device, so it is drawn to scale. Ask on WhatsApp to see the current covers.";
+  }
   if (!product.photos.length) {
     return "We don’t have a photo of this model yet, so the 3D view shows it at its real size in a plain cover. Ask on WhatsApp to see the current covers.";
   }
-  const lengthNote = product.lengthKnown ? "" : " The length isn’t listed, so it is shown at 190 cm.";
   if (!product.top) return `The 3D view shows its real size in a plain cover; the photos show the actual cover.${lengthNote}`;
   return `The 3D view is built at its real size from the product photos.${lengthNote}`;
 }
@@ -327,10 +408,19 @@ function open(card) {
     return false;
   }
   current = { product, card };
+  has3D ??= supportsWebGL();
+  if (has3D) prefetchCovers(product);
+  else relabelCards();
+  el.notice.textContent = "";
   fillDetails(product, card);
   renderThumbs();
-  if (!dialog.open) dialog.showModal();
-  selectThumb(el.thumbs.querySelector("button"));
+  const first = el.thumbs.querySelector("button");
+  if (!dialog.open) {
+    dialog.showModal();
+    // not left to showModal(): it can pick the thumbnail strip itself, which scrolls on narrow phones
+    first?.focus();
+  }
+  selectThumb(first);
   return true;
 }
 
@@ -357,9 +447,32 @@ function cardFor(hash) {
   return card?.matches("[data-catalog] .product[data-product]") ? card : null;
 }
 
+function pushEntry(card) {
+  history.pushState({ [VIEWER_ENTRY]: card.id }, "", `${pageUrl()}#${card.id}`);
+}
+
 /* Opens the viewer as its own history entry, so Back closes it and the address bar holds its link. */
 function openEntry(card) {
-  if (open(card)) history.pushState({ [VIEWER_ENTRY]: card.id }, "", `${pageUrl()}#${card.id}`);
+  if (open(card)) pushEntry(card);
+}
+
+/* Runs `fn` once the browser has done its own scroll and focus for a #fragment, two frames on. */
+function afterFragment(fn) {
+  requestAnimationFrame(() => requestAnimationFrame(fn));
+}
+
+/* The browser's jump to a #fragment takes focus out of the dialog it opens; put it back. */
+function keepFocusInside() {
+  if (dialog.open && !dialog.contains(document.activeElement)) el.thumbs.querySelector("button")?.focus();
+}
+
+/* Closed with nothing to hand focus back to (it opened from a link): focus its card, where the visitor is.
+   Chrome can leave focus on a button inside the closed dialog then, so that counts as nothing too.
+   Called as each close happens, and again from the "close" event, which Chrome holds for a frame. */
+function returnFocus() {
+  const active = document.activeElement;
+  if (dialog.open || (active && active !== document.body && !dialog.contains(active))) return;
+  current?.card.querySelector("[data-view]")?.focus({ preventScroll: true });
 }
 
 /* When the viewer is closed by its own controls: drop the mattress from the URL without scrolling.
@@ -371,24 +484,33 @@ function leaveEntry() {
 
 function closeByUser() {
   close();
+  returnFocus();
   leaveEntry();
 }
 
 /* Back, Forward, or a #slug typed into the address bar. */
 function followHistory() {
   const card = cardFor(location.hash);
-  if (card && (!dialog.open || card !== current?.card)) open(card);
-  else if (!card && dialog.open) close();
+  if (card && (!dialog.open || card !== current?.card)) {
+    if (open(card)) afterFragment(keepFocusInside);
+  } else if (!card && dialog.open) {
+    close();
+    returnFocus();
+  }
 }
 
 /* A shared link: put the page under the mattress, so Back closes the viewer instead of leaving.
-   The card is scrolled to first: the page entry keeps that position, and Back returns to it. */
+   The history entries wait for the browser's own jump to the card: the page entry keeps that
+   position, so closing returns to exactly where the page already is. */
 function openFromLink() {
   const card = cardFor(location.hash);
-  if (!card) return;
-  history.replaceState(null, "", pageUrl());
-  card.scrollIntoView({ block: "center" });
-  openEntry(card);
+  if (!card || !open(card)) return;
+  afterFragment(() => {
+    keepFocusInside();
+    if (!dialog.open || current?.card !== card) return;   // closed meanwhile: leaveEntry() tidied the URL
+    history.replaceState(null, "", pageUrl());
+    pushEntry(card);
+  });
 }
 
 function init() {
@@ -399,11 +521,19 @@ function init() {
   );
   dialog.querySelector("[data-viewer-close]").addEventListener("click", closeByUser);
   dialog.addEventListener("click", (event) => { if (event.target === dialog) closeByUser(); });
-  // Escape, or Android's back gesture: the dialog closes itself straight after
-  dialog.addEventListener("cancel", leaveEntry);
+  // Escape, or Android's back gesture: the dialog closes itself straight after, so focus waits a task
+  dialog.addEventListener("cancel", () => {
+    leaveEntry();
+    setTimeout(returnFocus);
+  });
   // "close" fires a task later (Chrome waits for a frame), possibly after the next open,
   // so it must not clear `current` or touch the URL
-  dialog.addEventListener("close", () => { if (!dialog.open) stopLoop(); });
+  dialog.addEventListener("close", () => {
+    if (dialog.open) return;
+    stopLoop();
+    returnFocus();
+  });
+  el.rotate.addEventListener("click", () => setRotating(el.rotate.getAttribute("aria-pressed") !== "true"));
   window.addEventListener("popstate", followHistory);
   openFromLink();
 }

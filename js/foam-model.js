@@ -1,9 +1,11 @@
 /* Shakir Foam — the 3D mattress.
    A soft, pillowed body at the mattress's real size, wrapped in its own
    photos, with piping where the cover has it and a separate pillow-top
-   layer on double-layer models. Units are metres. */
+   layer on double-layer models. Units are metres.
+   The mattress appears at once in a plain cover; its photos are laid on
+   as they arrive, and it stays plain if they never do. */
 
-import { copyOf, formatsReady, isPhone, pick } from "./foam-media.js";
+import { coverUrl, formatsReady } from "./foam-media.js";
 
 const CM = 0.01;
 const SEGMENTS = { across: 64, thick: 10 };
@@ -20,8 +22,7 @@ const PLAIN_COVER = 0xf1ece2;
 const BUMP_QUILTED = 6;             // relief taken from the cover photo's light and dark
 const BUMP_PRINTED = 1.5;
 const FINITE_STEP = 0.0015;
-const PHONE_TEXTURE = 1024;          // long side of the phone set of covers (the full set is 2048)
-const SMALL_GPU_TEXTURE = 4096;
+const SMALL_GPU_TEXTURE = 4096;      // a GPU that can't hold this gets the phone set of covers
 
 // loaded with the 3D view, when the format probes have almost always settled; this makes sure
 await formatsReady;
@@ -103,37 +104,31 @@ function pipingAround(THREE, shape, size, y, colour) {
 
 /* ---------- Materials ---------- */
 
-/* Phones get the 1024 px covers: the canvas there is under 1000 device px
-   across, so the 2048 px set only costs mobile data. A GPU that cannot
-   hold a 4096 px texture is a low-end one, and gets them too. */
-function textureSize(renderer) {
-  return isPhone() || renderer.capabilities.maxTextureSize < SMALL_GPU_TEXTURE ? PHONE_TEXTURE : null;
+function fetchTexture(THREE, url) {
+  return new Promise((resolve, reject) => new THREE.TextureLoader().load(url, resolve, undefined, reject));
 }
 
-function loadTexture(THREE, renderer, jpegUrl) {
-  const size = textureSize(renderer);
-  const url = copyOf(jpegUrl, { size, format: pick(["webp"]) });
-  const fallback = copyOf(jpegUrl, { size });
-  const texture = new THREE.TextureLoader().load(url, undefined, undefined, () => {
-    if (url === fallback) return console.error("Shakir Foam 3D viewer: cover texture missing", url);
-    console.warn("Shakir Foam 3D viewer: falling back to JPEG for", url);
-    // what TextureLoader itself does on load, so the cloned side bands pick it up too
-    new THREE.ImageLoader().load(fallback, (image) => {
-      texture.image = image;
-      texture.needsUpdate = true;
-    });
-  });
-  texture.colorSpace = THREE.SRGBColorSpace;
-  texture.anisotropy = renderer.capabilities.getMaxAnisotropy();
-  return texture;
+/* A cover photo as a texture, or null if neither the WebP nor the JPEG copy loads. */
+async function loadTexture(THREE, renderer, jpegUrl) {
+  const isSmallGpu = renderer.capabilities.maxTextureSize < SMALL_GPU_TEXTURE;
+  const urls = [...new Set([coverUrl(jpegUrl, { isSmallGpu }), coverUrl(jpegUrl, { isSmallGpu, format: "jpg" })])];
+  for (const url of urls) {
+    try {
+      const texture = await fetchTexture(THREE, url);
+      texture.colorSpace = THREE.SRGBColorSpace;
+      texture.anisotropy = renderer.capabilities.getMaxAnisotropy();
+      return texture;
+    } catch {
+      console.warn("Shakir Foam 3D viewer: cover photo didn't load", url);
+    }
+  }
+  return null;
 }
 
-function fabric(THREE, map, { quilted }) {
+/* Every material starts as the plain cover; dress() lays the photo on later. */
+function fabric(THREE) {
   return new THREE.MeshPhysicalMaterial({
-    color: map ? 0xffffff : PLAIN_COVER,
-    map: map ?? null,
-    bumpMap: map ?? null,
-    bumpScale: map ? (quilted ? BUMP_QUILTED : BUMP_PRINTED) : 0,
+    color: PLAIN_COVER,
     roughness: 0.86,
     sheen: 0.7,
     sheenRoughness: 0.55,
@@ -152,55 +147,80 @@ function sideBand(base, repeatX, from, to) {
   return t;
 }
 
-function body(THREE, size, maps, options) {
+function dress(material, map, { quilted }) {
+  if (!map) return;
+  Object.assign(material, { map, bumpMap: map, bumpScale: quilted ? BUMP_QUILTED : BUMP_PRINTED });
+  material.color.set(0xffffff);
+  material.needsUpdate = true;
+}
+
+/* One layer's body. `faces` says which photo, and which band of it, each face gets once loaded. */
+function body(THREE, size) {
   const { geometry, shape } = pillowGeometry(THREE, size);
-  const long = fabric(THREE, maps.long, options);
-  const short = fabric(THREE, maps.short, options);
-  const top = fabric(THREE, maps.top, options);
+  const materials = { long: fabric(THREE), short: fabric(THREE), top: fabric(THREE) };
+  const { long, short, top } = materials;
   // BoxGeometry face order: +x, -x, +y, -y, +z, -z
   const mesh = new THREE.Mesh(geometry, [long, long, top, top, short, short]);
   mesh.castShadow = true;
   mesh.receiveShadow = true;
-  return { mesh, shape };
+  return { mesh, shape, materials };
 }
 
 /* ---------- The mattress ---------- */
 
+/* Lays the loaded photos onto each layer, unless the mattress was put away meanwhile. */
+function dressLayers(group, built, textures, { seam, quilted }) {
+  const [top, side] = textures;
+  if (group.userData.isDisposed) {
+    textures.forEach((t) => t?.dispose());
+    return;
+  }
+  const options = { quilted };
+  built.forEach(({ layer, materials }) => {
+    const ownTop = layer.hasTop ? top : null;
+    dress(materials.top, ownTop ?? (seam ? sideBand(side, 1, ...layer.band) : null), options);
+    dress(materials.long, sideBand(side, 1, ...layer.band), options);
+    dress(materials.short, sideBand(side, layer.size.w / layer.size.l, ...layer.band), options);
+  });
+}
+
+/* The mattress, at once, in a plain cover. `covers` settles once its photos are on, or have failed. */
 export function buildMattress(lib, renderer, product) {
   const { THREE } = lib;
   const [w, l, h] = product.dims.map((v) => v * CM);
   const group = new THREE.Group();
-  const top = product.top ? loadTexture(THREE, renderer, product.top) : null;
-  const side = product.side ? loadTexture(THREE, renderer, product.side) : null;
-  const options = { quilted: product.quilted };
   const seam = product.layers === 2 && product.seam ? product.seam : 0;
   const layers = seam
     ? [
-        { size: { w, h: h * (1 - seam), l }, y: 0, band: [0, 1 - seam], top: null },
-        { size: { w: w - 2 * TOPPER_INSET, h: h * seam, l: l - 2 * TOPPER_INSET }, y: h * (1 - seam), band: [1 - seam, 1], top },
+        { size: { w, h: h * (1 - seam), l }, y: 0, band: [0, 1 - seam], hasTop: false },
+        { size: { w: w - 2 * TOPPER_INSET, h: h * seam, l: l - 2 * TOPPER_INSET }, y: h * (1 - seam), band: [1 - seam, 1], hasTop: true },
       ]
-    : [{ size: { w, h, l }, y: 0, band: [0, 1], top }];
+    : [{ size: { w, h, l }, y: 0, band: [0, 1], hasTop: true }];
 
-  layers.forEach((layer) => {
-    const maps = {
-      top: layer.top ?? (seam ? sideBand(side, 1, layer.band[0], layer.band[1]) : null),
-      long: sideBand(side, 1, ...layer.band),
-      short: sideBand(side, layer.size.w / layer.size.l, ...layer.band),
-    };
-    const { mesh, shape } = body(THREE, layer.size, maps, options);
+  const built = layers.map((layer) => {
+    const { mesh, shape, materials } = body(THREE, layer.size);
     mesh.position.y = layer.y + layer.size.h / 2;
     group.add(mesh);
-    if (!product.piping) return;
-    [1, -1].forEach((sign) => {
-      const piping = pipingAround(THREE, shape, layer.size, (sign * layer.size.h) / 2, product.piping);
-      piping.position.y = mesh.position.y;
-      group.add(piping);
-    });
+    addPiping(THREE, group, product, layer, mesh, shape);
+    return { layer, materials };
   });
-  return { group, width: w, length: l, height: h };
+
+  const covers = Promise.all([product.top, product.side].map((src) => (src ? loadTexture(THREE, renderer, src) : null)))
+    .then((textures) => dressLayers(group, built, textures, { seam, quilted: product.quilted }));
+  return { group, width: w, length: l, height: h, covers };
+}
+
+function addPiping(THREE, group, product, layer, mesh, shape) {
+  if (!product.piping) return;
+  [1, -1].forEach((sign) => {
+    const piping = pipingAround(THREE, shape, layer.size, (sign * layer.size.h) / 2, product.piping);
+    piping.position.y = mesh.position.y;
+    group.add(piping);
+  });
 }
 
 export function disposeMattress(group) {
+  group.userData.isDisposed = true;   // photos still on their way are dropped, not laid on
   group.traverse((child) => {
     if (!child.isMesh) return;
     child.geometry.dispose();
